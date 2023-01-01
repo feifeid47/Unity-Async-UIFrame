@@ -1,0 +1,37 @@
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.UI;
+using Feif.UIFramework;
+
+public class #SCRIPTNAME#Properties : UIProperties
+{
+
+}
+
+public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Properties>
+{
+    // 初始化方法，生命周期内仅调用1次
+    // 资源加载，网络请求，等耗时操作放在此处执行
+    // 加载的资源或句柄请在OnDestroy方法内回收
+    public override Task Initialize()
+    {
+        return Task.CompletedTask;
+    }
+
+    // 注册事件，当UI显示时调用
+    public override void AddListeners()
+    {
+    }
+
+    // 注销事件，当UI隐藏时调用
+    public override void RemoveListeners()
+    {
+    }
+
+    // 刷新UI，UI数据更新放到此处执行
+    public override void Refresh()
+    {
+    }
+}
