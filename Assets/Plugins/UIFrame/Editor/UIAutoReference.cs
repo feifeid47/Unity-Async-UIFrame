@@ -30,14 +30,7 @@ namespace Feif.UIFramework.Editor
             var setting = AssetDatabase.LoadAssetAtPath<UIFrameSetting>(path);
             if (setting == null || setting.AutoReference == false) return;
 
-            var changedFields = SetReference(uibase);
-            if (changedFields.Count > 0)
-            {
-                foreach (var field in changedFields)
-                {
-                    Debug.Log($"自动引用: {field}");
-                }
-            }
+            _ = SetReference(uibase);
         }
 
         public static List<string> SetReference(UnityObject script)
@@ -55,21 +48,20 @@ namespace Feif.UIFramework.Editor
                 if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
                 {
                     var list = field.GetValue(script) as IList;
-                    if (!(list == null || list.Count == 0)) continue;
 
-                    Undo.RecordObject(script, field.Name);
+                    // 获得元素组的父节点
+                    var content = GetComponentsInChildrenIgnoreActive<Transform>((script as Component).transform)
+                         .FirstOrDefault(item => item.name.Trim('@').ToUpper() == field.Name.ToUpper());
+
+                    if (content == null) continue;
+                    if (!content.name.StartsWith("@")) continue;
 
                     // 初始化空数组
                     field.SetValue(script, Activator.CreateInstance(fieldType));
                     // 获得数组
                     list = field.GetValue(script) as IList;
                     list.Clear();
-                    // 获得元素组的父节点
-                    var content = (type.GetMethod("GetComponentsInChildren", new Type[] { })
-                        ?.MakeGenericMethod(typeof(Transform))
-                        .Invoke(script, new object[] { }) as Component[])
-                        .FirstOrDefault(item => item.name.Trim('@').ToUpper() == field.Name.ToUpper()) as Transform;
-                    if (content == null) continue;
+
                     // 泛型类型
                     var genericType = fieldType.GetGenericArguments().First();
                     result.Add(field.Name);
@@ -88,24 +80,34 @@ namespace Feif.UIFramework.Editor
                     continue;
                 }
                 if (!fieldType.IsSubclassOf(typeof(Component))) continue;
-                var method = type.GetMethod("GetComponentsInChildren", new Type[] { }).MakeGenericMethod(fieldType);
-                var components = method.Invoke(script, new object[] { }) as Component[];
+                var components = GetComponentsInChildrenIgnoreActive<Component>((script as Component).transform);
                 var target = components.FirstOrDefault(item =>
                 {
+                    if (item.GetType() != fieldType) return false;
                     if (!item.name.StartsWith('@')) return false;
+
                     return field.Name.ToUpper() == item.name.Trim('@').ToUpper();
                 });
+
                 if (target == null) continue;
 
-                Undo.RecordObject(script, field.Name);
-
-                var sourceValue = field.GetValue(script);
-                if (!(sourceValue == null || (sourceValue as UnityObject) == null)) continue;
                 result.Add(field.Name);
                 field.SetValue(script, isGameObject ? target.gameObject as UnityObject : target);
             }
             EditorUtility.SetDirty(script);
             return result;
+        }
+
+        public static List<T> GetComponentsInChildrenIgnoreActive<T>(Transform root) where T : Component
+        {
+            List<T> components = new List<T>();
+            if (root.GetComponents<T>() != null) components.AddRange(root.GetComponents<T>());
+            for (int i = 0; i < root.childCount; i++)
+            {
+                var t = GetComponentsInChildrenIgnoreActive<T>(root.GetChild(i));
+                components.AddRange(t);
+            }
+            return components;
         }
     }
 }

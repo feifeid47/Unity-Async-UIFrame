@@ -221,7 +221,7 @@ namespace Feif.UIFramework
             if (panelStack.Count > 0 && name == panelStack.Peek().name) return;
 
             properties ??= new UIProperties();
-            string currentPanelName = panelStack.Count > 0 ? panelStack.Peek().name : null; ;
+            string currentPanelName = panelStack.Count > 0 ? panelStack.Peek().name : null;
             InvokeRemoveListener(CurrentPanel);
             properties.Sender = currentPanelName;
             var timeout = new CancellationTokenSource();

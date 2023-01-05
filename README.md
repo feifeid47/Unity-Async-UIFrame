@@ -3,6 +3,7 @@
 (1) 一个简单易用的异步UI框架  
 (2) 兼容多种资源管理系统（Addressable、YooAssets等）  
 (3) 支持自动引用，暴露在inspector面板上的字段会自动从Hierarchy面板引用  
+(4) 支持子面板，子UI
 ```
 # 如何使用
 初始化
@@ -53,7 +54,7 @@ private void OnStuckEnd(string name)
 }
 ```
 创建一个UI脚本，继承自UIComponent<T>
-并挂到一脚本同名的Prefab中
+并挂到与脚本同名的Prefab中
 ```C#
 public class TestUIProperties : UIProperties
 {
@@ -132,3 +133,19 @@ UIFrame.CloseWindow<TestUI>();
 // 刷新UI
 UIFrame.Refresh<TestUI>();
 ```
+
+# 自动引用
+有如下脚本，暴露在Inspector面板上的字段有`testBtn`，`contentTxt`，`imgList`
+```C#
+public class TestUI : UIComponent<TestUIProperties>
+{
+    [SerializeField] private Button testBtn;
+    [SerializeField] private Text contentTxt;
+    [SerializeField] private List<Image> imgList;
+}
+```
+只需将Hierarchy要自动引用的物体的名称改成字段的名称（不区分大小写），并且以@开头  
+改完名称后不需要其他任何操作，在Prefab保存的时候会自动将Hierarchy面板上的值赋值到Inspector面板上
+![](./README/autoref1.png)  
+对与List类型，只需修改元素父物体的名称即可，例如`ImgList`  
+![](./README/autoref2.png)
