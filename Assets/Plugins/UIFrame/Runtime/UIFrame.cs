@@ -57,6 +57,7 @@ namespace Feif.UIFramework
             Camera = canvas.worldCamera;
             PanelLayer = panelLayer;
             WindowLayer = windowLayer;
+            DontDestroyOnLoad(gameObject);
         }
 
         private static async Task<GameObject> RequestAsset(string name, Transform parent, Action<GameObject> beforInit)

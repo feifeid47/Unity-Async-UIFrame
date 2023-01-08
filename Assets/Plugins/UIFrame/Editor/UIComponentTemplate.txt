@@ -20,12 +20,12 @@ public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Properties>
         return Task.CompletedTask;
     }
 
-    // 注册事件，当UI显示时调用
+    // 注册事件，当UI打开时调用
     public override void AddListeners()
     {
     }
 
-    // 注销事件，当UI隐藏时调用
+    // 注销事件，当UI关闭时调用
     public override void RemoveListeners()
     {
     }
