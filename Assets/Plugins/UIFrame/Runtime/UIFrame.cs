@@ -19,9 +19,13 @@ namespace Feif.UIFramework
         [SerializeField] private RectTransform windowLayer;
         [SerializeField] private Canvas canvas;
 
+        /// <summary>Panel层级</summary>
         public static RectTransform PanelLayer { get; private set; }
+        /// <summary>Window层级</summary>
         public static RectTransform WindowLayer { get; private set; }
+        /// <summary>UI画布</summary>
         public static Canvas Canvas { get; private set; }
+        /// <summary>UI相机</summary>
         public static Camera Camera { get; private set; }
 
         /// <summary>当加载UI超过这个时间（单位：秒）时，检测为卡住</summary>
@@ -217,6 +221,9 @@ namespace Feif.UIFramework
             }
         }
 
+        /// <summary>
+        /// 显示面板
+        /// </summary>
         public static async void ShowPanel(string name, UIProperties properties, Action callback)
         {
             if (panelStack.Count > 0 && name == panelStack.Peek().name) return;
@@ -251,26 +258,41 @@ namespace Feif.UIFramework
             callback?.Invoke();
         }
 
+        /// <summary>
+        /// 显示面板
+        /// </summary>
         public static void ShowPanel<T>(UIProperties properties)
         {
             ShowPanel(typeof(T).Name, properties, null);
         }
 
+        /// <summary>
+        /// 显示面板
+        /// </summary>
         public static void ShowPanel<T>()
         {
             ShowPanel(typeof(T).Name, null, null);
         }
 
+        /// <summary>
+        /// 显示面板
+        /// </summary>
         public static void ShowPanel<T>(UIProperties properties, Action callback)
         {
             ShowPanel(typeof(T).Name, properties, callback);
         }
 
+        /// <summary>
+        /// 显示面板
+        /// </summary>
         public static void ShowPanel<T>(Action callback)
         {
             ShowPanel(typeof(T).Name, null, callback);
         }
 
+        /// <summary>
+        /// 隐藏面板，并显示上一个面板（如果有的话）
+        /// </summary>
         public static async void HidePanel(Action callback)
         {
             var currentPanelName = panelStack.Count > 0 ? panelStack.Peek().name : null;
@@ -318,11 +340,17 @@ namespace Feif.UIFramework
             callback?.Invoke();
         }
 
+        /// <summary>
+        /// 隐藏面板，并显示上一个面板（如果有的话）
+        /// </summary>
         public static void HidePanel()
         {
             HidePanel(null);
         }
 
+        /// <summary>
+        /// 打开一个窗口
+        /// </summary>
         public static async void OpenWindow(string name, UIProperties properties, Action callback)
         {
             var instance = await RequestAsset(name, WindowLayer, null);
@@ -334,26 +362,41 @@ namespace Feif.UIFramework
             callback?.Invoke();
         }
 
+        /// <summary>
+        /// 打开一个窗口
+        /// </summary>
         public static void OpenWindow<T>(UIProperties properties)
         {
             OpenWindow(typeof(T).Name, properties, null);
         }
 
+        /// <summary>
+        /// 打开一个窗口
+        /// </summary>
         public static void OpenWindow<T>()
         {
             OpenWindow(typeof(T).Name, null, null);
         }
 
+        /// <summary>
+        /// 打开一个窗口
+        /// </summary>
         public static void OpenWindow<T>(UIProperties properties, Action callback)
         {
             OpenWindow(typeof(T).Name, properties, callback);
         }
 
+        /// <summary>
+        /// 打开一个窗口
+        /// </summary>
         public static void OpenWindow<T>(Action callback)
         {
             OpenWindow(typeof(T).Name, null, callback);
         }
 
+        /// <summary>
+        /// 关闭一个窗口
+        /// </summary>
         public static void CloseWindow<T>()
         {
             var name = typeof(T).Name;
@@ -365,6 +408,9 @@ namespace Feif.UIFramework
             }
         }
 
+        /// <summary>
+        /// 刷新UI和该UI的子UI
+        /// </summary>
         public static void Refresh(string name)
         {
             if (name != null && instances.TryGetValue(name, out var instance))
@@ -373,12 +419,18 @@ namespace Feif.UIFramework
             }
         }
 
+        /// <summary>
+        /// 刷新UI和该UI的子UI
+        /// </summary>
         public static void Refresh<T>()
         {
             Refresh(typeof(T).Name);
         }
 
-        public void Release()
+        /// <summary>
+        /// 强制释放已经关闭的UI，即使UI的Can Destroy为false，仍然释放该资源
+        /// </summary>
+        public static void Release()
         {
             foreach (var item in instances)
             {
