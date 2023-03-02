@@ -90,15 +90,21 @@ public class TestUI : UIComponent<TestUIProperties>
     [SerializeField] private Button mainBtn;
     [SerializeField] private Image img;
 
-    // 初始化方法，生命周期内仅调用1次
-    // 资源加载，网络请求，等耗时操作放在此处执行
+    // 生命周期内仅调用1次
+    // 资源加载,与UI预制体生命周期关联的放到此处加载
     // 加载的资源或句柄请在OnDestroy方法内回收
+    public async overrid Task Create()
+    {
+        var handle = Addressables.LoadAssetAsync<Sprite>("XXX");
+        await handle;
+        // ......... 
+        // .........
+    }
+    
+    // 初始化
     public async override Task Initialize()
     {
         await UnityWebRequest.Get("XXX").SendWebRequest();
-        await Task.Delay(1000);
-        var handle = Addressables.LoadAssetAsync<Sprite>("XXX");
-        await handle;
         // ......... 
         // .........
     }
@@ -160,12 +166,17 @@ UIFrame.CloseWindow<TestUI>();
 UIFrame.Refresh<TestUI>();
 ```
 # UIComponent生命周期  
+
+![](./README/lifecycle.png)
+
 以TestUI为例，TestUI继承自`UIComponent<T>`  
 ```
-TestUI.Initialize -> TestUI下所有继承自UIComponent组件的Initialize -> TestUI.AddListeners -> TestUI下所有继承自UIComponent组件的AddListeners -> TestUI.Refresh -> 同理的Refresh -> TestUI.RemoveListeners -> 同理的RemoveListeners 
-``` 
-`Initialize`方法在`Awake`之后，`Start`之前执行  
-因为`Initialize`是耗时操作，所以`AddListeners`、`Refresh`都在`Update`之后执行  
+TestUI.Create -> TestUI下所有继承自UIComponent组件的Create -> TestUI.Initialize -> TestUI下所有继承自UIComponent组件的Initialize -> TestUI.AddListeners -> TestUI下所有继承自UIComponent组件的AddListeners -> TestUI.Refresh -> 同理的Refresh -> TestUI.RemoveListeners -> 同理的RemoveListeners 
+```
+`Create`和`Initialize`方法执行完成后，`Awake`以及之后的方法才会执行 
+
+`Create`方法生命周期内只执行一次
+
 ```
 注意：内部使用的是GetComponentsInChildren方法，所以未激活的子物体将不执行上述过程  
 ```
@@ -175,6 +186,7 @@ TestUI.Initialize -> TestUI下所有继承自UIComponent组件的Initialize -> T
 开启UIFrameSetting中的Auto Reference  
 如果要禁用自动引用，只需关闭UIFrameSetting中的Auto Reference  
 有如下脚本，暴露在Inspector面板上的字段有`testBtn`，`contentTxt`，`imgList`
+
 ```C#
 public class TestUI : UIComponent<TestUIProperties>
 {
@@ -201,8 +213,9 @@ TestUI挂载`TestUI`脚本，引用@RedUI、@BlueUI、@RedBtn、@BlueBtn
 @BlueUI挂载`BlueUI`脚本，引用@DataTxt、@CloseBtn  
 ![](./README/testui3.png)  
 在调用`UIFrame.ShowPanel<TestUI>`或`UIFrame.OpenWindow<TestUI>`时，执行如下过程  
-TestUI.Initialize -> RedUI.Initialize -> BlueUI.Initialze -> TestUI.AddListeners -> RedUI.AddListeners -> BlueUI.AddListeners -> TestUI.Refresh -> RedUI.Refresh -> BlueUI.Refresh  
-原理：调用`UIFrame.ShowPanel`、`UIFrame.HidePanel`或`UIFrame.OpenWindow`（即显示一个面板时），会使用`GetComponentsInChildren`方法获得该UI内所有继承自`UIComponent<T>`的组件，并执行他们的`Initialize`、`AddListeners`、`Refresh`、`RemoveListeners`方法  
+TestUI.Create -> RedUI.Create -> Blue.Create -> TestUI.Initialize -> RedUI.Initialize -> BlueUI.Initialze -> TestUI.AddListeners -> RedUI.AddListeners -> BlueUI.AddListeners -> TestUI.Refresh -> RedUI.Refresh -> BlueUI.Refresh  
+原理：调用`UIFrame.ShowPanel`、`UIFrame.HidePanel`或`UIFrame.OpenWindow`（即显示一个面板时），会使用`GetComponentsInChildren`方法获得该UI内所有继承自`UIComponent<T>`的组件，并执行他们的`Create`、`Initialize`、`AddListeners`、`Refresh`、`RemoveListeners`方法  
+
 ```
 注意：继承自UIComponent<T>的组件都有Show和Hide方法，该方法不受UIFrame的控制，Show和Hide直接控制gameObject的Active，并执行AddListeners或RemoveListeners方法，可按需要重写Show和Hide方法。Panel和Window使用UIFrame来控制，子UI或UI元素使用Show和Hide来控制  
 ```
@@ -213,6 +226,12 @@ public class TestUI : UIComponent<UIProperties>
     [SerializeField] private BlueUI blueUI;
     [SerializeField] private Button redBtn;
     [SerializeField] private Button blueBtn;
+    
+    public override async Task Create()
+    {
+        Debug.Log("TestUI Create");
+        await Task.CompletedTask;
+    }
 
     public override async Task Initialize()
     {
@@ -249,6 +268,12 @@ public class RedUI : UIComponent<RedUIProperties>
 {
     [SerializeField] private Text dataTxt;
     [SerializeField] private Button closeBtn;
+    
+    public overrid Task Create()
+    {
+        Debug.Log("RedUI Create");
+        return Task.CompletedTask;
+    }
 
     public override Task Initialize()
     {
@@ -295,6 +320,11 @@ public class #SCRIPTNAME#Properties : UIProperties
 
 public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Properties>
 {
+	public override Task Create()
+	{
+		return Task.CompletedTask;
+	}
+	
     public override Task Initialize()
     {
         return Task.CompletedTask;
@@ -321,6 +351,6 @@ public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Properties>
 当禁用`Can Destroy`时，调用`UIFrame.HidePanel`或`UIFrame.CloseWindow`时，只是将该物体的`Active`设为false  
 该字段可以在运行时通过代码来控制  
 ```
-注意：启用Can Destroy时，关闭面板后再打开面板会执行Initialize方法  
+注意：启用Can Destroy时，关闭面板后再打开面板会执行Create方法  
 推荐做法：频繁使用的UI禁用该选项以提升UI的打开速度。不频繁使用的UI，或占内存比较大的UI启用该选项以优化内存  
 ```

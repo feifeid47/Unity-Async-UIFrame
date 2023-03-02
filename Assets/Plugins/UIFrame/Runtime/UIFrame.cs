@@ -64,11 +64,10 @@ namespace Feif.UIFramework
             DontDestroyOnLoad(gameObject);
         }
 
-        private static async Task<GameObject> RequestAsset(string name, Transform parent, Action<GameObject> beforInit)
+        private static async Task<GameObject> RequestAsset(string name, Transform parent)
         {
             if (name != null && instances.TryGetValue(name, out var instance))
             {
-                beforInit?.Invoke(instance);
                 return instance;
             }
             var completionSource = new TaskCompletionSource<GameObject>();
@@ -77,9 +76,11 @@ namespace Feif.UIFramework
                 completionSource.SetResult(asset);
             });
             var refInstance = await completionSource.Task;
+            bool refActiveSelf = refInstance.activeSelf;
+            refInstance.SetActive(false);
             instance = GameObject.Instantiate(refInstance, parent);
-            beforInit?.Invoke(instance);
-            await InvokeInitialize(instance);
+            refInstance.SetActive(refActiveSelf);
+            await InvokeCreate(instance);
             instances[name] = instance;
             return instance;
         }
@@ -95,6 +96,33 @@ namespace Feif.UIFramework
                 Destroy(instance);
                 OnAssetRelease?.Invoke(name);
                 instances.Remove(name);
+            }
+        }
+
+        private static async Task InvokeCreate(GameObject instance)
+        {
+            if (instance == null) return;
+
+            var self = instance.GetComponent<UIBase>();
+            var children = instance.GetComponentsInChildren<UIBase>().Where(item => item != self);
+            try
+            {
+                await self.Create();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+            foreach (var item in children)
+            {
+                try
+                {
+                    await item.Create();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
             }
         }
 
@@ -240,14 +268,14 @@ namespace Feif.UIFramework
                 OnStuckStart?.Invoke(name);
                 isStuck = true;
             });
-            var instance = await RequestAsset(name, PanelLayer, instance =>
-            {
-                CurrentPanel?.SetActive(false);
-                ReleaseAsset(currentPanelName);
-            });
+            var instance = await RequestAsset(name, PanelLayer);
+            await InvokeInitialize(instance);
             timeout.Cancel();
 
             if (isStuck) OnStuckEnd?.Invoke(name);
+
+            CurrentPanel?.SetActive(false);
+            ReleaseAsset(currentPanelName);
 
             instance.SetActive(true);
             instance.transform.SetAsLastSibling();
@@ -303,28 +331,44 @@ namespace Feif.UIFramework
             }
             var currentPanel = CurrentPanel;
             panelStack.Pop();
+            InvokeRemoveListener(currentPanel);
             if (panelStack.Count > 0)
             {
-                InvokeRemoveListener(currentPanel);
-                var source = new CancellationTokenSource();
+                var timeout = new CancellationTokenSource();
                 bool isStuck = false;
                 Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
                 {
-                    if (source.IsCancellationRequested) return;
-                    OnStuckStart?.Invoke(panelStack.Peek().name);
+                    if (timeout.IsCancellationRequested) return;
+                    try
+                    {
+                        OnStuckStart?.Invoke(panelStack.Peek().name);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError(ex);
+                    }
                     isStuck = true;
                 });
-                var instance = await RequestAsset(panelStack.Peek().name, PanelLayer, instance =>
-                {
-                    instance.SetActive(true);
-                    instance.transform.SetAsLastSibling();
-                    currentPanel?.SetActive(false);
-                    ReleaseAsset(currentPanelName);
-                });
-                source.Cancel();
+                var instance = await RequestAsset(panelStack.Peek().name, PanelLayer);
+                await InvokeInitialize(instance);
+
+                currentPanel?.SetActive(false);
+                ReleaseAsset(currentPanelName);
+                instance.SetActive(true);
+                instance.transform.SetAsLastSibling();
+
+
+                timeout.Cancel();
                 if (isStuck)
                 {
-                    OnStuckEnd?.Invoke(panelStack.Peek().name);
+                    try
+                    {
+                        OnStuckEnd?.Invoke(panelStack.Peek().name);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogException(ex);
+                    }
                 }
                 InvokeAddListeners(instance);
                 panelStack.Peek().properties.Sender = currentPanelName;
@@ -333,7 +377,6 @@ namespace Feif.UIFramework
             }
             else
             {
-                InvokeRemoveListener(currentPanel);
                 currentPanel?.SetActive(false);
                 ReleaseAsset(currentPanelName);
             }
@@ -353,7 +396,8 @@ namespace Feif.UIFramework
         /// </summary>
         public static async void OpenWindow(string name, UIProperties properties, Action callback)
         {
-            var instance = await RequestAsset(name, WindowLayer, null);
+            var instance = await RequestAsset(name, WindowLayer);
+            await InvokeInitialize(instance);
             instance.SetActive(true);
             instance.transform.SetAsLastSibling();
             InvokeAddListeners(instance);

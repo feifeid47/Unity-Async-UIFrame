@@ -9,6 +9,8 @@ namespace Feif.UIFramework
     {
         public bool CanDestroy = true;
 
+        public virtual Task Create() => Task.CompletedTask;
+
         public virtual Task Initialize() => Task.CompletedTask;
 
         public virtual void AddListeners() { }
