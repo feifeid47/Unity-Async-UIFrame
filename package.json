@@ -1,0 +1,18 @@
+{
+    "name": "com.feif.uiframe",
+    "version": "1.0.2",
+    "displayName": "UIFrame",
+    "description": "异步UI框架",
+    "unity": "2019.1",
+    "unityRelease": "0b5",
+    "documentationUrl": "https://github.com/feifeid47/Unity-Async-UIFrame/blob/main/README.md",
+    "changelogUrl": "https://github.com/feifeid47/Unity-Async-UIFrame/blob/main/CHANGELOG.md",
+    "keywords": [
+        "uiframe",
+        "ugui"
+    ],
+    "author": {
+        "name": "feifeid47",
+        "email": "feifeid47@qq.com"
+    }
+}

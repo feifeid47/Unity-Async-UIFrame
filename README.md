@@ -3,11 +3,31 @@
 (1) 一个简单易用的异步UI框架  
 (2) 兼容多种资源管理系统（Addressable、YooAssets等）  
 (3) 支持自动引用，暴露在Inspector面板上的字段会自动从Hierarchy面板引用  
-(4) 支持子UI，UI元素
+(4) 支持子UI，子子UI，子子子UI......
 (5) 支持自定义脚本模板
 (6) 支持对UI面板的销毁控制，使内存优化更方便
+(7) 强大的扩展性,可以通过自定义事件，来支持自动事件绑定，例如自动绑定按钮的点击事件
 ```
+# 安装
+
+## 方案一
+
+使用git URL
+
+```
+https://github.com/feifeid47/Unity-Async-UIFrame
+```
+
+
+
+![](./README/install.png)  
+
+## 方案二
+
+导入unitypackage
+
 # 如何使用
+
 创建UIFrame预制体，可参考如下结构  
 Canvas的渲染模式要设置成`屏幕空间-摄像机`  
 PanelLayer和WindowLayer的RectTransform要设置成全屏的(左，右，顶部，底部都要为0)  
@@ -33,35 +53,35 @@ private void Awake()
     UIFrame.OnStuckEnd += OnStuckEnd;
 }
 
-// 资源请求事件，name为Prefab的名称。如：MainUI、TestUI
+// 资源请求事件，type为UI脚本的类型
 // 可以使用Addressables，YooAssets等第三方资源管理系统
-private async void OnAssetRequest(string name, Action<GameObject> response)
+private async void OnAssetRequest(Type type, Action<GameObject> response)
 {
-    if (!handles.ContainsKey(name))
+    if (!handles.ContainsKey(type.Name))
     {
-        var handle = Addressables.LoadAssetAsync<GameObject>(name);
+        var handle = Addressables.LoadAssetAsync<GameObject>(type.Name);
         await handle.Task;
-        handles[name] = handle;
+        handles[type] = handle;
     }
-    response.Invoke(handles[name].Result);
+    response.Invoke(handles[type].Result);
 }
 
 // 资源释放事件
-private void OnAssetRelease(string name)
+private void OnAssetRelease(Type type)
 {
-    if(handles.ContainsKey(name))
+    if(handles.ContainsKey(type))
     {
-        handles[name].Release();
-        handles.Remove(name);
+        handles[type].Release();
+        handles.Remove(type);
     }
 }
 
-private void OnStuckStart(string name)
+private void OnStuckStart()
 {
     // UI初始化加时间过长，卡住了,打开转圈面板
 }
 
-private void OnStuckEnd(string name)
+private void OnStuckEnd()
 {
     // 不卡了，关闭转圈面板
 }
@@ -70,230 +90,247 @@ private void OnStuckEnd(string name)
 并挂到与脚本同名的Prefab中  
 
 ```C#
-public class TestUIProperties : UIProperties
+public class UITestData : UIData
 {
 
 }
 
-public class TestUI : UIComponent<TestUIProperties>
+[UIPanel]
+public class UITest : UIComponent<UITestData>
 {
-    // 暴露在Inspector面板上的字段会自动引用
-    // 只需让Hierarchy面板上的对象的名称与字段名称保持一致（不区分大小写），并以@开头
-    // 如： 
-    // @Content
-    // @CloseBtn
-    // @MainBtn
-    // @Img
-
-    [SerializeField] private Text content;
-    [SerializeField] private Button closeBtn;
-    [SerializeField] private Button mainBtn;
     [SerializeField] private Image img;
+    [SerializeField] private Text content;
+    [SerializeField] private Button close;
 
-    // 生命周期内仅调用1次
-    // 资源加载,与UI预制体生命周期关联的放到此处加载
-    // 加载的资源或句柄请在OnDestroy方法内回收
-    public async overrid Task Create()
+    // 创建时调用，生命周期内只执行一次
+    protected override async Task OnCreate()
     {
-        var handle = Addressables.LoadAssetAsync<Sprite>("XXX");
-        await handle;
-        // ......... 
-        // .........
-    }
-    
-    // 初始化
-    public async override Task Initialize()
-    {
-        await UnityWebRequest.Get("XXX").SendWebRequest();
-        // ......... 
-        // .........
+        // 异步请求资源
+        var completionSource = new TaskCompletionSource<Sprite>();
+        var handle = Resources.LoadAsync<Sprite>("sprite");
+        handle.completed += _ =>
+        {
+
+            completionSource.SetResult(handle.asset as Sprite);
+        };
+        img.sprite = await completionSource.Task;
     }
 
-     // 注册事件，当UI打开时调用
-    public override void AddListeners()
+    // 绑定事件
+    protected override void OnBind()
     {
-        closeBtn.onClick.AddListener(OnClose);
-        mainBtn.onClick.AddListener(OnMain);
+        close.onClick.AddListener(OnClose);
     }
 
-    // 注销事件，当UI关闭时调用
-    public override void RemoveListeners()
+    // 解绑事件
+    protected override void OnUnbind()
     {
-        closeBtn.onClick.RemoveListener(OnClose);
-        mainBtn.onClick.AddListener(OnMain);
+        close.onClick.RemoveListener(OnClose);
     }
 
-    // 刷新UI，UI数据更新放到此处执行
-    public override void Refresh()
+    // 刷新
+    protected override async Task OnRefresh()
     {
-        content.text = $"Sender = {this.Properties.Sender}";
+        // 异步请求网络数据
+        var completionSource = new TaskCompletionSource<string>();
+        using var request = UnityWebRequest.Get("http:/xxxx");
+        request.SendWebRequest().completed += _ =>
+        {
+            completionSource.SetResult(request.downloadHandler.text);
+        };
+        var data = await completionSource.Task;
+        content.text = data;
     }
 
-    private void OnMain()
+    // 显示时调用
+    protected override void OnShow()
     {
-        // UIFrame.ShowPanel<MainUI>(new MainUIProperties());
-        // 或
-        // UIFrame.OpenWindow<MainUI>(new MainUIProperties());
+
+    }
+
+    // 隐藏时调用
+    protected override void OnHide()
+    {
+    }
+
+    // 销毁时调用，生命周期内只执行一次
+    protected override void OnDied()
+    {
     }
 
     private void OnClose()
     {
-        // UIFrame.CloseWindow<TestUI>();
-        // 或
-        // UIFrame.HidePanel();
-    }
-
-    private void OnDestroy()
-    {
-        // handle.Release();
+        // 关闭当前面板
+        UIFrame.Hide(this);
     }
 }
 ```
-使用以下方法对UI进行控制  
-Panel由栈进行控制，显示下一个Panel时会将当前Panel关闭，隐藏当前Panel时会显示上一个Panel  
-Window一般用作弹窗，它显示在Panel之上，使用OpenWindow和CloseWindow进行控制  
-一个UI不能既由充当Panel又充当Window，即不能使用ShowPanel，HidePanel方法的同时又使用OpenWindow，CloseWindow  
+使用`[UIPanel]`或`[UIWindow]`属性来标记UI  
+使用`[UIPanel]`属性标记的UI类一般用作全屏面板，将由栈进行控制，显示下一个Panel时会将当前Panel关闭，隐藏当前Panel时会显示上一个Panel  
+使用`[UIWindow]`属性标记的UI类一般用作弹窗，它显示在Panel之上  
+一个UI不能既由充当Panel又充当Window
+
 ```C#
-// 显示Panel
-UIFrame.ShowPanel<TestUI>(new TestUIProperties());
-// 隐藏Panel
-UIFrame.HidePanel();
-// 打开Window
-UIFrame.OpenWindow<TestUI>(new TestUIProperties());
-// 关闭Window
-UIFrame.CloseWindow<TestUI>();
+// 显示UI
+UIFrame.Show<TestUI>(new TestUIData());
+// 显示子UI
+UIFrame.Show(UIBase uibase);
+// 隐藏UI
+UIFrame.Hide<TestUI>();
+// 隐藏子UI
+UIFrame.Hide(UIbase uibase);
 // 刷新UI
 UIFrame.Refresh<TestUI>();
+// 刷新子UI
+UIFrame.Refresh(UIBase uibase);
+// 释放资源
+UIFrame.Release();
+// 实例化UI资源
+UIFrame.Instantiate(gameObject,parent);
+// 销毁UI资源
+UIFrame.Destroy(gameObject);
+// 销毁UI资源
+UIFrame.DestroyImmediate(gameObject);
+
 ```
-# UIComponent生命周期  
+# UIBase生命周期  
+
+以下是调用UIFrame.Show显示下一个Panel时的执行过程
 
 ![](./README/lifecycle.png)
 
-以TestUI为例，TestUI继承自`UIComponent<T>`  
-```
-TestUI.Create -> TestUI下所有继承自UIComponent组件的Create -> TestUI.Initialize -> TestUI下所有继承自UIComponent组件的Initialize -> TestUI.AddListeners -> TestUI下所有继承自UIComponent组件的AddListeners -> TestUI.Refresh -> 同理的Refresh -> TestUI.RemoveListeners -> 同理的RemoveListeners 
-```
-`Create`和`Initialize`方法执行完成后，`Awake`以及之后的方法才会执行 
 
-`Create`方法生命周期内只执行一次
 
+以UITest为例，TestUI继承自`UIComponent<T>`，当显示UITest时，将按以下步骤依次执行
 ```
-注意：内部使用的是GetComponentsInChildren方法，所以未激活的子物体将不执行上述过程  
+(1) UITest.OnCreate
+(2) UITest下所有继承自UIBase组件的OnCreate
+(3) UITest.OnRefresh 
+(4) UITest下所有继承自UIBase组件且激活的物体的OnRefresh
+(5) UITest.OnBind
+(6) UITest下所有继承自UIBase组件且激活的物体的OnBind
+(7) UITest.OnShow
+(8) UITest下所有继承自UIBase组件且激活的物体的OnShow
 ```
+隐藏TestUI时，将按以下步骤依次执行  
+```
+(1) UITest下所有继承自UIBase组件且激活的物体的OnUnbind
+(2) UITest.OnUnbind
+(3) UITest下所有继承自UIBase组件且激活的物体的OnHide
+(4) UITest.OnHide
+(5) UITest下所有继承自UIBase组件的OnDied
+(6) UITest.OnDied
+```
+`OnCreate`方法和`OnDied`生命周期内只执行一次
+只有当`OnCreate`，和`OnRefresh`执行完成后，物体才会被激活，即MonoBehaviour的`Awake`在OnCreate和OnRefresh之后执行
+不推荐使用MonoBehaviour生命周期内的函数
+
 # 自动引用
 首先创建`UIFrameSetting`，右键菜单 -> 创建 -> UIFrame -> UIFrameSetting  
 可以将`UIFrameSetting`这个文件放到其他位置，而不是必须要在Assets目录下  
-开启UIFrameSetting中的Auto Reference  
-如果要禁用自动引用，只需关闭UIFrameSetting中的Auto Reference  
-有如下脚本，暴露在Inspector面板上的字段有`testBtn`，`contentTxt`，`imgList`
+开启UIFrameSetting中的`Auto Reference`  
+如果要禁用自动引用，只需关闭UIFrameSetting中的`Auto Reference`  
+如下：
 
 ```C#
-public class TestUI : UIComponent<TestUIProperties>
-{
-    [SerializeField] private Button testBtn;
-    [SerializeField] private Text contentTxt;
-    [SerializeField] private List<Image> imgList;
-}
+[SerializeField] private UIRed uiRed;
+[SerializeField] private UIBlue uiBlue;
+[SerializeField] private Button btnRed;
+[SerializeField] private Button btnBlue;
+[SerializeField] private Button btnBack;
+[SerializeField] private List<Image> listImg;
 ```
 只需将Hierarchy要自动引用的物体的名称改成字段的名称（不区分大小写），并且以@开头  
-改完名称后不需要其他任何操作，在Prefab保存的时候会自动将Hierarchy面板上的值赋值到Inspector面板上  
-在开启自动引用时被引用的字段将被控制，你无法删除或将该字段的值修改成其他值  
+改完名称后不需要其他任何操作，在Prefab保存的时候会自动将Hierarchy面板上的值赋值到Inspector面板上。
+对于List类型，元素父物体的名称与List字段名称保持一直即可。  
+在开启自动引用时，被引用的字段将被控制，你无法删除或将该字段的值修改成其他值  
+
 ![](./README/autoref1.png)  
-对与List类型，只需修改成元素父物体的名称即可，例如`ImgList`  
-![](./README/autoref2.png)  
 
-# 子UI，UI元素
+# 子UI
 有时一个面板上会有多个子面板和一些UI元素，希望能在显示一个UI时，能同时将子面板和UI元素进行初始化和刷新  
-例如，TestUI有RedUI和BlueUI这2个子UI，RedUI和BlueUI都有一个Text组件，显示Data = xxx  
-希望在显示TestUI时对RedUI和BlueUI进行初始化和刷新，更新Data = xxx的值，并且能通过TestUI上的2个按钮打开子UI，子UI上带一个关闭按钮，能将自己关闭  
+例如，`UITest`有`UIRed`和`UIBlue`这2个子UI，`UIRed`和`UIBlue`都有一个Text组件，显示Data = xxx  
+希望在显示`UITest`时对`UIRed`和`UIBlue`进行初始化和刷新，更新Data = xxx的值，并且能通过`UITest`上的2个按钮打开子UI，子UI上带一个关闭按钮，能将自己关闭  
 ![](./README/testui2.png)  
-TestUI面板的结构如下  
-TestUI挂载`TestUI`脚本，引用@RedUI、@BlueUI、@RedBtn、@BlueBtn  
-@RedUI挂载`RedUI`脚本，引用@DataTxt、@CloseBtn  
-@BlueUI挂载`BlueUI`脚本，引用@DataTxt、@CloseBtn  
-![](./README/testui3.png)  
-在调用`UIFrame.ShowPanel<TestUI>`或`UIFrame.OpenWindow<TestUI>`时，执行如下过程  
-TestUI.Create -> RedUI.Create -> Blue.Create -> TestUI.Initialize -> RedUI.Initialize -> BlueUI.Initialze -> TestUI.AddListeners -> RedUI.AddListeners -> BlueUI.AddListeners -> TestUI.Refresh -> RedUI.Refresh -> BlueUI.Refresh  
-原理：调用`UIFrame.ShowPanel`、`UIFrame.HidePanel`或`UIFrame.OpenWindow`（即显示一个面板时），会使用`GetComponentsInChildren`方法获得该UI内所有继承自`UIComponent<T>`的组件，并执行他们的`Create`、`Initialize`、`AddListeners`、`Refresh`、`RemoveListeners`方法  
+`UITest`面板的结构如下  
+`UITest`挂载`UITest`脚本，引用@UIRed、@UIBlue、@BtnRed、@BtnBlue  
+`@UIRed`挂载`UIRed`脚本，引用`@DataTxt`、`@BtnClose`  
+`@UIBlue`挂载`UIBlue`脚本，引用`@DataTxt`、`@BtnClose`  
+根据UIBase的生命周期，显示UITest时，会同时执行UITest下所有继承自UIBase的组件的方法，且会按顺序执行，执行完父物体的函数才会执行子物体的函数
 
-```
-注意：继承自UIComponent<T>的组件都有Show和Hide方法，该方法不受UIFrame的控制，Show和Hide直接控制gameObject的Active，并执行AddListeners或RemoveListeners方法，可按需要重写Show和Hide方法。Panel和Window使用UIFrame来控制，子UI或UI元素使用Show和Hide来控制  
-```
 ```C#
-public class TestUI : UIComponent<UIProperties>
+[UIPanel]
+public class UITest : UIBase
 {
-    [SerializeField] private RedUI redUI;
-    [SerializeField] private BlueUI blueUI;
-    [SerializeField] private Button redBtn;
-    [SerializeField] private Button blueBtn;
-    
-    public override async Task Create()
+    [SerializeField] private UIRed uiRed;
+    [SerializeField] private UIBlue uiBlue;
+    [SerializeField] private Button btnRed;
+    [SerializeField] private Button btnBlue;
+    [SerializeField] private Button btnBack;
+
+    protected override void OnBind()
     {
-        Debug.Log("TestUI Create");
-        await Task.CompletedTask;
+        btnRed.onClick.AddListener(OnBtnRed);
+        btnBlue.onClick.AddListener(OnBtnBlue);
+        btnBack.onClick.AddListener(OnBack);
     }
 
-    public override async Task Initialize()
+    protected override void OnUnbind()
     {
-        Debug.Log("TestUI Initialize");
-        await Task.CompletedTask;
+        btnRed.onClick.RemoveListener(OnBtnRed);
+        btnBlue.onClick.RemoveListener(OnBtnBlue);
+        btnBack.onClick.RemoveListener(OnBack);
     }
 
-    public override void AddListeners()
+    private void OnBtnRed()
     {
-        redBtn.onClick.AddListener(redUI.Show);
-        blueBtn.onClick.AddListener(blueUI.Show);
+        // 这是显示子UI的正确步骤，错误步骤为：UIFrame.Show<UIRed>(data);
+        var data = new UIRedData() { Content = "This is UIRed" };
+        UIFrame.Show(uiRed, data);
     }
 
-    public override void RemoveListeners()
+    private void OnBtnBlue()
     {
-        redBtn.onClick.RemoveListener(redUI.Show);
-        blueBtn.onClick.RemoveListener(blueUI.Show);
+        var data = new UIBlueData() { Content = "This is UIBlue" };
+        UIFrame.Show(uiBlue， data);
     }
 
-    public override void Refresh()
+    private void OnBack()
     {
-        redUI.Properties = new RedUIProperties() { Data = "Red" };
-        blueUI.Properties = new BlueUIProperties() { Data = "Blue" };
+        UIFrame.Hide(this);
     }
 }
 ```
 ```C#
-public class RedUIProperties : UIProperties
+public class UIRedData : UIData
 {
-    public string Data;
+    public string Content;
 }
 
-public class RedUI : UIComponent<RedUIProperties>
+public class UIRed : UIComponent<UIRedData>
 {
     [SerializeField] private Text dataTxt;
-    [SerializeField] private Button closeBtn;
-    
-    public overrid Task Create()
+    [SerializeField] private Button btnClose;
+
+    protected override Task OnRefresh()
     {
-        Debug.Log("RedUI Create");
+        dataTxt.text = $"Data = {Data.Content}";
         return Task.CompletedTask;
     }
 
-    public override Task Initialize()
+    protected override void OnBind()
     {
-        Debug.Log("RedUI Initialize");
-        return Task.CompletedTask;
+        btnClose.onClick.AddListener(OnBtnClose);
     }
 
-    public override void AddListeners()
+    protected override void OnUnbind()
     {
-        closeBtn.onClick.AddListener(this.Hide);
+        btnClose.onClick.RemoveListener(OnBtnClose);
     }
 
-    public override void RemoveListeners()
+    protected void OnBtnClose()
     {
-        closeBtn.onClick.RemoveListener(this.Hide);
-    }
-
-    public override void Refresh()
-    {
-        dataTxt.text = $"Data = {Properties.Data}";
+        UIFrame.Hide(this);
     }
 }
 ```
@@ -301,56 +338,134 @@ public class RedUI : UIComponent<RedUIProperties>
 # 自定义脚本模板
 首先创建`UIFrameSetting`，右键菜单 -> 创建 -> UIFrame -> UIFrameSetting  
 可以将`UIFrameSetting`这个文件放到其他位置，而不是必须要在Assets目录下  
-右键菜单可以看到`创建UIComponent`，点击后会在Assets目录下创建一个`UIFrameSetting`（如果没有的话） 
-将模板文件(.txt)拖放到UIFrameSetting中，模板文件可以参考`UIComponentTemplate.txt`  
+默认脚本模板在UIFrame/Editor/Resources中，可根据需要修改   
+将模板文件(.txt)拖放到UIFrameSetting中    
 文件名将会替换模板文件中的`#SCRIPTNAME#`  
-![](./README/menu.png)
-```
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using UnityEngine;
-using UnityEngine.UI;
-using Feif.UIFramework;
-
-public class #SCRIPTNAME#Properties : UIProperties
-{
-
-}
-
-public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Properties>
-{
-	public override Task Create()
-	{
-		return Task.CompletedTask;
-	}
-	
-    public override Task Initialize()
-    {
-        return Task.CompletedTask;
-    }
-
-    public override void AddListeners()
-    {
-    }
-
-    public override void RemoveListeners()
-    {
-    }
-
-    public override void Refresh()
-    {
-    }
-}
-```
+![](./README/menu.png)    
+![](./README/template.png)  
 
 # UI的销毁控制
 ![](./README/testui.png)  
-继承自`UIComponent<T>`的脚本都会在Inspector面板上暴露出`Can Destroy`属性  
-当启用`Can Destroy`时，会在调用`UIFrame.HidePanel`或`UIFrame.CloseWindow`时销毁该物体，并释放该物体引用的资源  
-当禁用`Can Destroy`时，调用`UIFrame.HidePanel`或`UIFrame.CloseWindow`时，只是将该物体的`Active`设为false  
+继承自`UIComponent<T>`的脚本都会在Inspector面板上暴露出`Auto Destroy`属性  
+当启用`Auto Destroy`时，会在UI不可见时销毁该物体，并释放该物体引用的资源  
 该字段可以在运行时通过代码来控制  
+
 ```
-注意：启用Can Destroy时，关闭面板后再打开面板会执行Create方法  
+注意：启用Auto Destroy时，关闭面板后再打开面板会执行OnCreate方法  
 推荐做法：频繁使用的UI禁用该选项以提升UI的打开速度。不频繁使用的UI，或占内存比较大的UI启用该选项以优化内存  
 ```
+
+# 动态创建或销毁UI gameObject
+
+如果要在运行时动态创建UI gameObject，请使用以下方法
+
+```C#
+UIFrame.Instantiate(gameObject,parent);
+UIFrame.Destroy(gameObject);
+UIFrame.DestroyImmediate(gameObject);
+```
+
+使用UIFrame.Instantiate、UIFrame.Destroy来创建或销毁物体时，会自动补全UIBase中的关系树。  
+这样能确保动态创建或销毁的物体能正确的被UIFrame所控制。  
+
+# 自定义事件
+按钮事件自动绑定，可以通过注册UIFrame.OnBind和UIFrame.OnUnbind来实现。  
+可参考如下  
+
+```C#
+private void Awake()
+{
+    // 注册创建事件
+    UIFrame.OnCreate += OnCreate;
+    // 注册自动事件绑定
+    UIFrame.OnBind += OnBind;
+    UIFrame.OnUnbind += OnUnbind;
+}
+
+private static void OnCreate(UIBase uibase)
+{
+    var methods = uibase.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static).Where(item => Attribute.IsDefined(item, typeof(ButtonEventAttribute)));
+    binds[uibase] = new Dictionary<string, (Button, UnityAction)>();
+    var bind = binds[uibase];
+    var buttons = new Dictionary<string, Button>();
+
+    foreach (var item in uibase.transform.BreadthTraversal().Where(item => item.GetComponent<Button>() != null && item.name.StartsWith("@")))
+    {
+        var key = $"On{item.name.Trim('@')}".ToUpper();
+        if (!buttons.ContainsKey(key))
+        {
+            buttons[key] = item.GetComponent<Button>();
+        }
+    }
+
+    foreach (var method in methods)
+    {
+        var key = method.Name.ToUpper();
+        if (buttons.TryGetValue(key, out var btn))
+        {
+            bind[key] = (btn, (UnityAction)UnityAction.CreateDelegate(typeof(UnityAction), uibase, method));
+        }
+    }
+}
+
+private static void OnBind(UIBase uibase)
+{
+    if (binds.TryGetValue(uibase, out var bind))
+    {
+        foreach (var item in bind.Values)
+        {
+            item.btn.onClick.AddListener(item.action);
+        }
+    }
+}
+
+private static void OnUnbind(UIBase uibase)
+{
+    if (binds.TryGetValue(uibase, out var bind))
+    {
+        foreach (var item in bind.Values)
+        {
+            item.btn.onClick.RemoveListener(item.action);
+        }
+    }
+}
+```
+
+这样就不需要手动在UIBase中的OnBind和OnUnbind添加事件的注册和注销了。  
+
+可以直接写方法体，带上属性，会自动绑定和解绑事件，如下
+
+```C#
+[UIPanel]
+public class UITest : UIBase
+{
+    [SerializeField] private UIRed uiRed;
+    [SerializeField] private UIBlue uiBlue;
+    [SerializeField] private Button btnRed;
+    [SerializeField] private Button btnBlue;
+    [SerializeField] private Button btnBack;
+
+    [ButtonEvent]
+    protected void OnBtnRed()
+    {
+        var data = new UIRedData() { Content = "This is UIRed" };
+        UIFrame.Show(uiRed, data);
+    }
+
+    [ButtonEvent]
+
+    protected void OnBtnBlue()
+    {
+        var data = new UIBlueData() { Content = "This is UIBlue" };
+        UIFrame.Show(uiBlue, data);
+    }
+
+    [ButtonEvent]
+    protected void OnBack()
+    {
+        UIFrame.Hide(this);
+    }
+}
+```
+
+其他事件的扩展都可以通过注册`UIFrame.OnCreate`、`UIFrame.OnRefresh`、`UIFrame.OnBind`、`UIFrame.OnUnbind`、`UIFrame.OnShow`、`UIFrame.OnHide`、`UIFrame.Ondied`来实现
