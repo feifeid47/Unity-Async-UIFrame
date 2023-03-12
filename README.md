@@ -15,7 +15,7 @@
 使用git URL
 
 ```
-https://github.com/feifeid47/Unity-Async-UIFrame
+https://github.com/feifeid47/Unity-Async-UIFrame.git
 ```
 
 
