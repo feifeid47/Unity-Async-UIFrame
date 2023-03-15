@@ -2,6 +2,13 @@
 
 这是更新日志
 
+## [1.0.4] - 2023-03-15
+
+### Fixed
+
+- 修复UIFrame.Show显示UI时使用默认参数时导致的错误
+- 修复UIFrame.Hide中遗漏的timeout.Cancel()
+
 ## [1.0.3] - 2023-03-15
 
 ### Added

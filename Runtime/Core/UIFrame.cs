@@ -269,7 +269,6 @@ namespace Feif.UIFramework
         public static bool TrySetData(UIBase ui, UIData data)
         {
             if (ui == null) return false;
-            if (data == null) return false;
             var property = ui.GetType().GetProperty("Data", BindingFlags.Public | BindingFlags.Instance);
             if (property == null) return false;
             property.SetValue(ui, data);
@@ -602,8 +601,10 @@ namespace Feif.UIFramework
                 DoUnbind(currentUIBases);
                 var instance = await RequestInstance(type);
                 var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                data ??= new UIData();
-                data.Sender = CurrentPanel?.GetType();
+                if (data != null)
+                {
+                    data.Sender = CurrentPanel?.GetType();
+                }
                 TrySetData(instance.GetComponent<UIBase>(), data);
                 await DoRefresh(uibases);
                 DoHide(currentUIBases);
@@ -618,8 +619,10 @@ namespace Feif.UIFramework
             {
                 var instance = await RequestInstance(type);
                 var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                data ??= new UIData();
-                data.Sender = CurrentPanel?.GetType();
+                if (data != null)
+                {
+                    data.Sender = CurrentPanel?.GetType();
+                }
                 TrySetData(instance.GetComponent<UIBase>(), data);
                 await DoRefresh(uibases);
                 instance.SetActive(true);
@@ -670,6 +673,7 @@ namespace Feif.UIFramework
                 DoHide(currentUIBases);
                 ReleaseInstance(currentPanel.GetType());
             }
+            timeout.Cancel();
             if (isStuck) OnStuckEnd?.Invoke();
         }
     }
