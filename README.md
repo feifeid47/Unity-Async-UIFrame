@@ -57,7 +57,7 @@ private void Awake()
 // 可以使用Addressables，YooAssets等第三方资源管理系统
 private async void OnAssetRequest(Type type, Action<GameObject> response)
 {
-    if (!handles.ContainsKey(type.Name))
+    if (!handles.ContainsKey(type))
     {
         var handle = Addressables.LoadAssetAsync<GameObject>(type.Name);
         await handle.Task;
@@ -133,7 +133,7 @@ public class UITest : UIComponent<UITestData>
     {
         // 异步请求网络数据
         var completionSource = new TaskCompletionSource<string>();
-        using var request = UnityWebRequest.Get("http:/xxxx");
+        using var request = UnityWebRequest.Get("http://xxxx");
         request.SendWebRequest().completed += _ =>
         {
             completionSource.SetResult(request.downloadHandler.text);
@@ -222,8 +222,9 @@ UIFrame.DestroyImmediate(gameObject);
 (6) UITest.OnDied
 ```
 `OnCreate`方法和`OnDied`生命周期内只执行一次
-只有当`OnCreate`，和`OnRefresh`执行完成后，物体才会被激活，即MonoBehaviour的`Awake`在OnCreate和OnRefresh之后执行
-不推荐使用MonoBehaviour生命周期内的函数
+只有当`OnCreate`，和`OnRefresh`执行完成后，物体才会被激活，即MonoBehaviour的`Awake`在OnCreate和OnRefresh之后执行  
+不推荐使用MonoBehaviour生命周期内的函数  
+需要注意的是，UI的事件绑定和解绑请务必放到`OnBind`和`OnUnbind`中，以避免异步过程中造成的多次响应带来不可预知的错误。在异步过程中，UI会停止响应，如果响应时间超过了`UIFrame.StuckTime`将会触发卡住事件。
 
 # 自动引用
 首先创建`UIFrameSetting`，右键菜单 -> 创建 -> UIFrame -> UIFrameSetting  
@@ -292,7 +293,7 @@ public class UITest : UIBase
     private void OnBtnBlue()
     {
         var data = new UIBlueData() { Content = "This is UIBlue" };
-        UIFrame.Show(uiBlue， data);
+        UIFrame.Show(uiBlue, data);
     }
 
     private void OnBack()
@@ -468,4 +469,4 @@ public class UITest : UIBase
 }
 ```
 
-其他事件的扩展都可以通过注册`UIFrame.OnCreate`、`UIFrame.OnRefresh`、`UIFrame.OnBind`、`UIFrame.OnUnbind`、`UIFrame.OnShow`、`UIFrame.OnHide`、`UIFrame.Ondied`来实现
+其他事件的扩展都可以通过注册`UIFrame.OnCreate`、`UIFrame.OnRefresh`、`UIFrame.OnBind`、`UIFrame.OnUnbind`、`UIFrame.OnShow`、`UIFrame.OnHide`、`UIFrame.OnDied`来实现
