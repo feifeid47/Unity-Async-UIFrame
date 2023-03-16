@@ -88,7 +88,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 资源请求
         /// </summary>
-        public static Action<Type, Action<GameObject>> OnAssetRequest;
+        public static Func<Type, Task<GameObject>> OnAssetRequest;
 
         /// <summary>
         /// 资源释放
@@ -293,8 +293,15 @@ namespace Feif.UIFramework
             }
             foreach (var item in uibases)
             {
-                OnDied?.Invoke(item);
-                item.InnerOnDied();
+                try
+                {
+                    OnDied?.Invoke(item);
+                    item.InnerOnDied();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
             }
             GameObject.Destroy(instance);
         }
@@ -316,8 +323,15 @@ namespace Feif.UIFramework
             }
             foreach (var item in uibases)
             {
-                OnDied?.Invoke(item);
-                item.InnerOnDied();
+                try
+                {
+                    OnDied?.Invoke(item);
+                    item.InnerOnDied();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
             }
             GameObject.DestroyImmediate(instance);
         }
@@ -381,12 +395,7 @@ namespace Feif.UIFramework
             if (type == null) throw new NullReferenceException();
             if (instances.TryGetValue(type, out var instance)) return instance;
 
-            var completionSource = new TaskCompletionSource<GameObject>();
-            OnAssetRequest?.Invoke(type, asset =>
-            {
-                completionSource.SetResult(asset);
-            });
-            var refInstance = await completionSource.Task;
+            var refInstance = await OnAssetRequest?.Invoke(type);
             var parent = IsPanel(refInstance.GetComponent<UIBase>()) ? PanelLayer : WindowLayer;
             bool refActiveSelf = refInstance.activeSelf;
 
@@ -534,18 +543,71 @@ namespace Feif.UIFramework
             }
             foreach (var item in uibases)
             {
-                OnCreate?.Invoke(item);
-                await item.InnerOnCreate();
+                try
+                {
+                    OnCreate?.Invoke(item);
+                    await item.InnerOnCreate();
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
             }
             return instance;
         }
 
-        public static async Task ShowAsync(UIBase ui, UIData data = null)
+        private static async Task ShowAsync(UIBase ui, UIData data = null)
         {
-            if (!IsPanel(ui) && !IsWindow(ui))
+            try
             {
-                if (ui.gameObject.activeSelf) return;
+                if (!IsPanel(ui) && !IsWindow(ui))
+                {
+                    if (ui.gameObject.activeSelf) return;
 
+                    var timeout = new CancellationTokenSource();
+
+                    bool isStuck = false;
+                    var stuckPanelType = CurrentPanel?.GetType();
+                    Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
+                    {
+                        if (timeout.IsCancellationRequested) return;
+                        OnStuckStart?.Invoke();
+                        isStuck = true;
+                    });
+
+                    var parentUIBases = ui.Parent.BreadthTraversal().ToArray();
+                    DoUnbind(parentUIBases);
+                    TrySetData(ui, data);
+                    var uibases = ui.BreadthTraversal().ToArray();
+                    await DoRefresh(uibases);
+                    ui.gameObject.SetActive(true);
+                    if (ui.Parent != null)
+                    {
+                        DoBind(parentUIBases);
+                    }
+                    else
+                    {
+                        DoBind(uibases);
+                    }
+                    DoShow(uibases);
+
+                    timeout.Cancel();
+                    if (isStuck) OnStuckEnd?.Invoke();
+
+                    return;
+                }
+                await Show(ui.GetType(), data);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+        }
+
+        private static async Task ShowAsync(Type type, UIData data = null)
+        {
+            try
+            {
                 var timeout = new CancellationTokenSource();
 
                 bool isStuck = false;
@@ -556,125 +618,103 @@ namespace Feif.UIFramework
                     OnStuckStart?.Invoke();
                     isStuck = true;
                 });
-
-                var parentUIBases = ui.Parent.BreadthTraversal().ToArray();
-                DoUnbind(parentUIBases);
-                TrySetData(ui, data);
-                var uibases = ui.BreadthTraversal().ToArray();
-                await DoRefresh(uibases);
-                ui.gameObject.SetActive(true);
-                if (ui.Parent != null)
+                if (IsPanel(type))
                 {
-                    DoBind(parentUIBases);
+                    if (CurrentPanel != null && type == CurrentPanel.GetType()) return;
+
+                    var currentUIBases = CurrentPanel.BreadthTraversal().ToArray();
+                    DoUnbind(currentUIBases);
+                    var instance = await RequestInstance(type);
+                    var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
+                    if (data != null)
+                    {
+                        data.Sender = CurrentPanel?.GetType();
+                    }
+                    TrySetData(instance.GetComponent<UIBase>(), data);
+                    await DoRefresh(uibases);
+                    DoHide(currentUIBases);
+                    CurrentPanel?.gameObject.SetActive(false);
+                    ReleaseInstance(CurrentPanel?.GetType());
+                    instance.SetActive(true);
+                    panelStack.Push((type, data));
+                    DoBind(uibases);
+                    DoShow(uibases);
+                }
+                if (IsWindow(type))
+                {
+                    var instance = await RequestInstance(type);
+                    var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
+                    if (data != null)
+                    {
+                        data.Sender = CurrentPanel?.GetType();
+                    }
+                    TrySetData(instance.GetComponent<UIBase>(), data);
+                    await DoRefresh(uibases);
+                    instance.SetActive(true);
+                    instance.transform.SetAsLastSibling();
+                    DoBind(uibases);
+                    DoShow(uibases);
+                }
+                timeout.Cancel();
+                if (isStuck) OnStuckEnd?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+        }
+
+        private static async Task HideAsync()
+        {
+            try
+            {
+                var timeout = new CancellationTokenSource();
+
+                bool isStuck = false;
+                Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
+                {
+                    if (timeout.IsCancellationRequested) return;
+                    OnStuckStart?.Invoke();
+                    isStuck = true;
+                });
+
+                if (CurrentPanel == null) return;
+
+                var currentPanel = CurrentPanel;
+                var currentUIBases = currentPanel.BreadthTraversal().ToArray();
+                panelStack.Pop();
+                DoUnbind(currentUIBases);
+                if (panelStack.Count > 0)
+                {
+                    var instance = await RequestInstance(panelStack.Peek().type);
+                    var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
+                    if (panelStack.Peek().data != null)
+                    {
+                        panelStack.Peek().data.Sender = currentPanel?.GetType();
+                    }
+                    TrySetData(instance.GetComponent<UIBase>(), panelStack.Peek().data);
+                    await DoRefresh(uibases);
+                    currentPanel.gameObject.SetActive(false);
+                    DoHide(currentUIBases);
+                    ReleaseInstance(currentPanel.GetType());
+                    instance.gameObject.SetActive(true);
+                    instance.transform.SetAsLastSibling();
+                    DoBind(uibases);
+                    DoShow(uibases);
                 }
                 else
                 {
-                    DoBind(uibases);
+                    currentPanel.gameObject.SetActive(false);
+                    DoHide(currentUIBases);
+                    ReleaseInstance(currentPanel.GetType());
                 }
-                DoShow(uibases);
-
                 timeout.Cancel();
                 if (isStuck) OnStuckEnd?.Invoke();
-
-                return;
             }
-            await Show(ui.GetType(), data);
-        }
-
-        public static async Task ShowAsync(Type type, UIData data = null)
-        {
-            var timeout = new CancellationTokenSource();
-
-            bool isStuck = false;
-            var stuckPanelType = CurrentPanel?.GetType();
-            Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
+            catch (Exception ex)
             {
-                if (timeout.IsCancellationRequested) return;
-                OnStuckStart?.Invoke();
-                isStuck = true;
-            });
-            if (IsPanel(type))
-            {
-                if (CurrentPanel != null && type == CurrentPanel.GetType()) return;
-
-                var currentUIBases = CurrentPanel.BreadthTraversal().ToArray();
-                DoUnbind(currentUIBases);
-                var instance = await RequestInstance(type);
-                var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                if (data != null)
-                {
-                    data.Sender = CurrentPanel?.GetType();
-                }
-                TrySetData(instance.GetComponent<UIBase>(), data);
-                await DoRefresh(uibases);
-                DoHide(currentUIBases);
-                CurrentPanel?.gameObject.SetActive(false);
-                ReleaseInstance(CurrentPanel?.GetType());
-                instance.SetActive(true);
-                panelStack.Push((type, data));
-                DoBind(uibases);
-                DoShow(uibases);
+                Debug.LogException(ex);
             }
-            if (IsWindow(type))
-            {
-                var instance = await RequestInstance(type);
-                var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                if (data != null)
-                {
-                    data.Sender = CurrentPanel?.GetType();
-                }
-                TrySetData(instance.GetComponent<UIBase>(), data);
-                await DoRefresh(uibases);
-                instance.SetActive(true);
-                instance.transform.SetAsLastSibling();
-                DoBind(uibases);
-                DoShow(uibases);
-            }
-            timeout.Cancel();
-            if (isStuck) OnStuckEnd?.Invoke();
-        }
-
-        public static async Task HideAsync()
-        {
-            var timeout = new CancellationTokenSource();
-
-            bool isStuck = false;
-            Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
-            {
-                if (timeout.IsCancellationRequested) return;
-                OnStuckStart?.Invoke();
-                isStuck = true;
-            });
-
-            if (CurrentPanel == null) return;
-
-            var currentPanel = CurrentPanel;
-            var currentUIBases = currentPanel.BreadthTraversal().ToArray();
-            panelStack.Pop();
-            DoUnbind(currentUIBases);
-            if (panelStack.Count > 0)
-            {
-                var instance = await RequestInstance(panelStack.Peek().type);
-                var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                panelStack.Peek().data.Sender = currentPanel?.GetType();
-                TrySetData(instance.GetComponent<UIBase>(), panelStack.Peek().data);
-                await DoRefresh(uibases);
-                currentPanel.gameObject.SetActive(false);
-                DoHide(currentUIBases);
-                ReleaseInstance(currentPanel.GetType());
-                instance.gameObject.SetActive(true);
-                instance.transform.SetAsLastSibling();
-                DoBind(uibases);
-                DoShow(uibases);
-            }
-            else
-            {
-                currentPanel.gameObject.SetActive(false);
-                DoHide(currentUIBases);
-                ReleaseInstance(currentPanel.GetType());
-            }
-            timeout.Cancel();
-            if (isStuck) OnStuckEnd?.Invoke();
         }
     }
 }

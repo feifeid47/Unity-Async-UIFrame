@@ -1,6 +1,15 @@
 # Changelog
 
 这是更新日志
+## [1.0.5] - 2023-03-16
+
+### Changed
+- 修改UIFrame.OnAssetRequest
+- ShowAsync，HideAsync修改为私有
+
+### Fixed
+- 修复遗漏的异常捕获
+- 修复UIFrame.HideAsync空引用异常
 
 ## [1.0.4] - 2023-03-15
 
