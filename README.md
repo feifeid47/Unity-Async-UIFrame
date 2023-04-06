@@ -374,67 +374,88 @@ UIFrame.DestroyImmediate(gameObject);
 可参考如下  
 
 ```C#
-private void Awake()
+public class AutoBindUGUIButtonEvent
 {
-    // 注册创建事件
-    UIFrame.OnCreate += OnCreate;
-    // 注册自动事件绑定
-    UIFrame.OnBind += OnBind;
-    UIFrame.OnUnbind += OnUnbind;
-}
+    private static Dictionary<UIBase, Dictionary<string, (Button btn, UnityAction action)>> binds = new Dictionary<UIBase, Dictionary<string, (Button, UnityAction)>>();
 
-private static void OnCreate(UIBase uibase)
-{
-    var methods = uibase.GetType().GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static).Where(item => Attribute.IsDefined(item, typeof(ButtonEventAttribute)));
-    binds[uibase] = new Dictionary<string, (Button, UnityAction)>();
-    var bind = binds[uibase];
-    var buttons = new Dictionary<string, Button>();
-
-    foreach (var item in uibase.transform.BreadthTraversal().Where(item => item.GetComponent<Button>() != null && item.name.StartsWith("@")))
+    public static void Enable()
     {
-        var key = $"On{item.name.Trim('@')}".ToUpper();
-        if (!buttons.ContainsKey(key))
+        UIFrame.OnCreate += OnCreate;
+        UIFrame.OnBind += OnBind;
+        UIFrame.OnUnbind += OnUnbind;
+        UIFrame.OnDied += OnDied;
+    }
+
+    public static void Disable()
+    {
+        UIFrame.OnCreate -= OnCreate;
+        UIFrame.OnBind -= OnBind;
+        UIFrame.OnUnbind -= OnUnbind;
+        UIFrame.OnDied -= OnDied;
+    }
+
+    private static void OnCreate(UIBase uibase)
+    {
+        var methods = uibase.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
+            .Where(item => Attribute.IsDefined(item, typeof(UGUIButtonEventAttribute)));
+        binds[uibase] = new Dictionary<string, (Button, UnityAction)>();
+        var bind = binds[uibase];
+        var buttons = new Dictionary<string, Button>();
+
+        foreach (var item in uibase.transform.BreadthTraversal()
+            .Where(item => item.GetComponent<Button>() != null
+            && item.name.StartsWith("@")))
         {
-            buttons[key] = item.GetComponent<Button>();
+            var key = $"On{item.name.Trim('@')}".ToUpper();
+            if (!buttons.ContainsKey(key))
+            {
+                buttons[key] = item.GetComponent<Button>();
+            }
+        }
+
+        foreach (var method in methods)
+        {
+            var key = method.Name.ToUpper();
+            if (buttons.TryGetValue(key, out var btn))
+            {
+                bind[key] = (btn, (UnityAction)Delegate.CreateDelegate(typeof(UnityAction), uibase, method));
+            }
         }
     }
 
-    foreach (var method in methods)
+    private static void OnBind(UIBase uibase)
     {
-        var key = method.Name.ToUpper();
-        if (buttons.TryGetValue(key, out var btn))
+        if (binds.TryGetValue(uibase, out var bind))
         {
-            bind[key] = (btn, (UnityAction)UnityAction.CreateDelegate(typeof(UnityAction), uibase, method));
+            foreach (var (btn, action) in bind.Values)
+            {
+                btn.onClick.AddListener(action);
+            }
         }
     }
-}
 
-private static void OnBind(UIBase uibase)
-{
-    if (binds.TryGetValue(uibase, out var bind))
+    private static void OnUnbind(UIBase uibase)
     {
-        foreach (var item in bind.Values)
+        if (binds.TryGetValue(uibase, out var bind))
         {
-            item.btn.onClick.AddListener(item.action);
+            foreach (var (btn, action) in bind.Values)
+            {
+                btn.onClick.RemoveListener(action);
+            }
         }
     }
-}
 
-private static void OnUnbind(UIBase uibase)
-{
-    if (binds.TryGetValue(uibase, out var bind))
+    private static void OnDied(UIBase uibase)
     {
-        foreach (var item in bind.Values)
-        {
-            item.btn.onClick.RemoveListener(item.action);
-        }
+        binds.Remove(uibase);
     }
 }
 ```
 
 这样就不需要手动在UIBase中的OnBind和OnUnbind添加事件的注册和注销了。  
 
-可以直接写方法体，带上属性，会自动绑定和解绑事件，如下
+可以直接写方法体，带上属性，会自动绑定和解绑事件，如下：UITest预制体有子物体@BtnRed，@BtnBlue，@BtnBack。
 
 ```C#
 [UIPanel]
@@ -442,18 +463,15 @@ public class UITest : UIBase
 {
     [SerializeField] private UIRed uiRed;
     [SerializeField] private UIBlue uiBlue;
-    [SerializeField] private Button btnRed;
-    [SerializeField] private Button btnBlue;
-    [SerializeField] private Button btnBack;
 
-    [ButtonEvent]
+    [UGUIButtonEvent]
     protected void OnBtnRed()
     {
         var data = new UIRedData() { Content = "This is UIRed" };
         UIFrame.Show(uiRed, data);
     }
 
-    [ButtonEvent]
+    [UGUIButtonEvent]
 
     protected void OnBtnBlue()
     {
@@ -461,8 +479,8 @@ public class UITest : UIBase
         UIFrame.Show(uiBlue, data);
     }
 
-    [ButtonEvent]
-    protected void OnBack()
+    [UGUIButtonEvent]
+    protected void OnBtnBack()
     {
         UIFrame.Hide(this);
     }

@@ -93,7 +93,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 资源释放
         /// </summary>
-        public static Action<Type> OnAssetRelease;
+        public static event Action<Type> OnAssetRelease;
 
         /// <summary>
         /// UI创建时调用
@@ -278,7 +278,6 @@ namespace Feif.UIFramework
         /// <summary>
         /// 销毁UI GameObject
         /// </summary>
-        /// <param name="instance"></param>
         public static void Destroy(GameObject instance)
         {
             var uibases = instance.transform.BreadthTraversal()
@@ -384,7 +383,7 @@ namespace Feif.UIFramework
                 if (item.Value != null && !item.Value.activeInHierarchy)
                 {
                     UIFrame.Destroy(item.Value);
-                    OnAssetRelease(item.Key);
+                    OnAssetRelease?.Invoke(item.Key);
                     instances.Remove(item.Key);
                 }
             }
@@ -567,7 +566,6 @@ namespace Feif.UIFramework
                     var timeout = new CancellationTokenSource();
 
                     bool isStuck = false;
-                    var stuckPanelType = CurrentPanel?.GetType();
                     Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
                     {
                         if (timeout.IsCancellationRequested) return;
@@ -611,7 +609,6 @@ namespace Feif.UIFramework
                 var timeout = new CancellationTokenSource();
 
                 bool isStuck = false;
-                var stuckPanelType = CurrentPanel?.GetType();
                 Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
                 {
                     if (timeout.IsCancellationRequested) return;
@@ -626,15 +623,18 @@ namespace Feif.UIFramework
                     DoUnbind(currentUIBases);
                     var instance = await RequestInstance(type);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                    if (data != null)
+                    if (data != null && CurrentPanel != null)
                     {
-                        data.Sender = CurrentPanel?.GetType();
+                        data.Sender = CurrentPanel.GetType();
                     }
                     TrySetData(instance.GetComponent<UIBase>(), data);
                     await DoRefresh(uibases);
                     DoHide(currentUIBases);
-                    CurrentPanel?.gameObject.SetActive(false);
-                    ReleaseInstance(CurrentPanel?.GetType());
+                    if (CurrentPanel != null)
+                    {
+                        CurrentPanel.gameObject.SetActive(false);
+                        ReleaseInstance(CurrentPanel.GetType());
+                    }
                     instance.SetActive(true);
                     panelStack.Push((type, data));
                     DoBind(uibases);
@@ -644,9 +644,9 @@ namespace Feif.UIFramework
                 {
                     var instance = await RequestInstance(type);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                    if (data != null)
+                    if (data != null && CurrentPanel != null)
                     {
-                        data.Sender = CurrentPanel?.GetType();
+                        data.Sender = CurrentPanel.GetType();
                     }
                     TrySetData(instance.GetComponent<UIBase>(), data);
                     await DoRefresh(uibases);
@@ -688,16 +688,16 @@ namespace Feif.UIFramework
                 {
                     var instance = await RequestInstance(panelStack.Peek().type);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                    if (panelStack.Peek().data != null)
+                    if (panelStack.Peek().data != null && currentPanel != null)
                     {
-                        panelStack.Peek().data.Sender = currentPanel?.GetType();
+                        panelStack.Peek().data.Sender = currentPanel.GetType();
                     }
                     TrySetData(instance.GetComponent<UIBase>(), panelStack.Peek().data);
                     await DoRefresh(uibases);
                     currentPanel.gameObject.SetActive(false);
                     DoHide(currentUIBases);
                     ReleaseInstance(currentPanel.GetType());
-                    instance.gameObject.SetActive(true);
+                    instance.SetActive(true);
                     instance.transform.SetAsLastSibling();
                     DoBind(uibases);
                     DoShow(uibases);
