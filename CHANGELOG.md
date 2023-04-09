@@ -1,6 +1,16 @@
 # Changelog
 
 这是更新日志
+
+## [1.0.7] - 2023-04-10
+
+### Added
+- 新增Demo
+
+### Fixed
+- 修复UIFrame.Instantiate没有正确设置Parent和Children
+- 修复OnCreate中访问UIDate时为空的BUG
+
 ## [1.0.6] - 2023-04-06
 
 ### Fixed

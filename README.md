@@ -55,7 +55,7 @@ private void Awake()
 
 // 资源请求事件，type为UI脚本的类型
 // 可以使用Addressables，YooAssets等第三方资源管理系统
-private async void OnAssetRequest(Type type, Action<GameObject> response)
+private async Task<GameObject> OnAssetRequest(Type type)
 {
     if (!handles.ContainsKey(type))
     {
@@ -63,7 +63,7 @@ private async void OnAssetRequest(Type type, Action<GameObject> response)
         await handle.Task;
         handles[type] = handle;
     }
-    response.Invoke(handles[type].Result);
+    return handles[type].Result;
 }
 
 // 资源释放事件
@@ -472,7 +472,6 @@ public class UITest : UIBase
     }
 
     [UGUIButtonEvent]
-
     protected void OnBtnBlue()
     {
         var data = new UIBlueData() { Content = "This is UIBlue" };

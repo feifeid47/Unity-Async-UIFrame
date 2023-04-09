@@ -45,7 +45,6 @@ namespace Feif.UIFramework
         /// </summary>
         public static float StuckTime = 1;
 
-
         /// <summary>
         /// 当前显示的Panel
         /// </summary>
@@ -78,17 +77,17 @@ namespace Feif.UIFramework
         /// <summary>
         /// 卡住开始时触发的事件
         /// </summary>
-        public static Action OnStuckStart;
+        public static event Action OnStuckStart;
 
         /// <summary>
         /// 卡住结束时触发的事件
         /// </summary>
-        public static Action OnStuckEnd;
+        public static event Action OnStuckEnd;
 
         /// <summary>
         /// 资源请求
         /// </summary>
-        public static Func<Type, Task<GameObject>> OnAssetRequest;
+        public static event Func<Type, Task<GameObject>> OnAssetRequest;
 
         /// <summary>
         /// 资源释放
@@ -258,9 +257,9 @@ namespace Feif.UIFramework
         /// <summary>
         /// 创建UI GameObject
         /// </summary>
-        public static Task<GameObject> Instantiate(GameObject prefab, Transform parent = null)
+        public static Task<GameObject> Instantiate(GameObject prefab, Transform parent = null, UIData data = null)
         {
-            return InstantiateAsync(prefab, parent);
+            return InstantiateAsync(prefab, parent, data);
         }
 
         /// <summary>
@@ -286,7 +285,7 @@ namespace Feif.UIFramework
                 .ToArray();
             foreach (var item in uibases)
             {
-                var parentUI = item.GetComponentsInParent<UIBase>().FirstOrDefault(p => p != item);
+                var parentUI = GetParent(item);
                 if (parentUI == null) continue;
                 parentUI.Children.Remove(item);
             }
@@ -316,7 +315,7 @@ namespace Feif.UIFramework
                .ToArray();
             foreach (var item in uibases)
             {
-                var parentUI = item.GetComponentsInParent<UIBase>().FirstOrDefault(p => p != item);
+                var parentUI = GetParent(item);
                 if (parentUI == null) continue;
                 parentUI.Children.Remove(item);
             }
@@ -389,7 +388,7 @@ namespace Feif.UIFramework
             }
         }
 
-        private static async Task<GameObject> RequestInstance(Type type)
+        private static async Task<GameObject> RequestInstance(Type type, UIData data)
         {
             if (type == null) throw new NullReferenceException();
             if (instances.TryGetValue(type, out var instance)) return instance;
@@ -399,7 +398,7 @@ namespace Feif.UIFramework
             bool refActiveSelf = refInstance.activeSelf;
 
             refInstance.SetActive(false);
-            instance = await UIFrame.Instantiate(refInstance, parent);
+            instance = await UIFrame.Instantiate(refInstance, parent, data);
             refInstance.SetActive(refActiveSelf);
             instances[type] = instance;
 
@@ -427,6 +426,8 @@ namespace Feif.UIFramework
 
             for (int i = 0; i < uibases.Count; ++i)
             {
+                if (uibases[i] == null) continue;
+
                 if (i == 0 || uibases[i].gameObject.activeSelf)
                 {
                     try
@@ -448,6 +449,8 @@ namespace Feif.UIFramework
 
             for (int i = 0; i < uibases.Count; ++i)
             {
+                if (uibases[i] == null) continue;
+
                 if (i == 0 || uibases[i].gameObject.activeSelf)
                 {
                     try
@@ -470,6 +473,8 @@ namespace Feif.UIFramework
 
             for (int i = uibases.Count - 1; i >= 0; --i)
             {
+                if (uibases[i] == null) continue;
+
                 if (i == 0 || uibases[i].gameObject.activeSelf)
                 {
                     try
@@ -491,6 +496,8 @@ namespace Feif.UIFramework
 
             for (int i = 0; i < uibases.Count; ++i)
             {
+                if (uibases[i] == null) continue;
+
                 if (i == 0 || uibases[i].gameObject.activeSelf)
                 {
                     try
@@ -512,6 +519,8 @@ namespace Feif.UIFramework
 
             for (int i = uibases.Count - 1; i >= 0; --i)
             {
+                if (uibases[i] == null) continue;
+
                 if (i == 0 || uibases[i].gameObject.activeSelf)
                 {
                     try
@@ -527,16 +536,22 @@ namespace Feif.UIFramework
             }
         }
 
-        private static async Task<GameObject> InstantiateAsync(GameObject prefab, Transform parent)
+        private static async Task<GameObject> InstantiateAsync(GameObject prefab, Transform parent, UIData data)
         {
             var instance = GameObject.Instantiate(prefab, parent);
+            var uibase = instance.GetComponent<UIBase>();
             var uibases = instance.transform.BreadthTraversal()
                 .Where(item => item.GetComponent<UIBase>() != null)
                 .Select(item => item.GetComponent<UIBase>())
                 .ToArray();
+            TrySetData(instance.GetComponent<UIBase>(), data);
+            foreach(var item in uibases)
+            {
+                item.Children.Clear();
+            }
             foreach (var item in uibases)
             {
-                var parentUI = item.GetComponentsInParent<UIBase>().FirstOrDefault(p => p != item);
+                var parentUI = GetParent(item);
                 if (parentUI == null) continue;
                 parentUI.Children.Add(item);
             }
@@ -552,6 +567,12 @@ namespace Feif.UIFramework
                     Debug.LogException(ex);
                 }
             }
+            if (!IsPanel(uibase) && !IsWindow(uibase))
+            {
+                await DoRefresh(uibases);
+                DoBind(uibases);
+                DoShow(uibases);
+            }
             return instance;
         }
 
@@ -563,19 +584,18 @@ namespace Feif.UIFramework
                 {
                     if (ui.gameObject.activeSelf) return;
 
+                    TrySetData(ui, data);
                     var timeout = new CancellationTokenSource();
-
                     bool isStuck = false;
                     Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
                     {
                         if (timeout.IsCancellationRequested) return;
+
                         OnStuckStart?.Invoke();
                         isStuck = true;
                     });
-
                     var parentUIBases = ui.Parent.BreadthTraversal().ToArray();
                     DoUnbind(parentUIBases);
-                    TrySetData(ui, data);
                     var uibases = ui.BreadthTraversal().ToArray();
                     await DoRefresh(uibases);
                     ui.gameObject.SetActive(true);
@@ -588,8 +608,8 @@ namespace Feif.UIFramework
                         DoBind(uibases);
                     }
                     DoShow(uibases);
-
                     timeout.Cancel();
+
                     if (isStuck) OnStuckEnd?.Invoke();
 
                     return;
@@ -618,20 +638,22 @@ namespace Feif.UIFramework
                 if (IsPanel(type))
                 {
                     if (CurrentPanel != null && type == CurrentPanel.GetType()) return;
-
-                    var currentUIBases = CurrentPanel.BreadthTraversal().ToArray();
-                    DoUnbind(currentUIBases);
-                    var instance = await RequestInstance(type);
+                    UIBase[] currentUIBases = null;
+                    if (CurrentPanel != null)
+                    {
+                        currentUIBases = CurrentPanel.BreadthTraversal().ToArray();
+                        DoUnbind(currentUIBases);
+                    }
+                    var instance = await RequestInstance(type, data);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
                     if (data != null && CurrentPanel != null)
                     {
                         data.Sender = CurrentPanel.GetType();
                     }
-                    TrySetData(instance.GetComponent<UIBase>(), data);
                     await DoRefresh(uibases);
-                    DoHide(currentUIBases);
                     if (CurrentPanel != null)
                     {
+                        DoHide(currentUIBases);
                         CurrentPanel.gameObject.SetActive(false);
                         ReleaseInstance(CurrentPanel.GetType());
                     }
@@ -642,13 +664,12 @@ namespace Feif.UIFramework
                 }
                 if (IsWindow(type))
                 {
-                    var instance = await RequestInstance(type);
+                    var instance = await RequestInstance(type, data);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
                     if (data != null && CurrentPanel != null)
                     {
                         data.Sender = CurrentPanel.GetType();
                     }
-                    TrySetData(instance.GetComponent<UIBase>(), data);
                     await DoRefresh(uibases);
                     instance.SetActive(true);
                     instance.transform.SetAsLastSibling();
@@ -686,13 +707,13 @@ namespace Feif.UIFramework
                 DoUnbind(currentUIBases);
                 if (panelStack.Count > 0)
                 {
-                    var instance = await RequestInstance(panelStack.Peek().type);
-                    var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
-                    if (panelStack.Peek().data != null && currentPanel != null)
+                    var data = panelStack.Peek().data;
+                    if (data != null && currentPanel != null)
                     {
-                        panelStack.Peek().data.Sender = currentPanel.GetType();
+                        data.Sender = currentPanel.GetType();
                     }
-                    TrySetData(instance.GetComponent<UIBase>(), panelStack.Peek().data);
+                    var instance = await RequestInstance(panelStack.Peek().type, data);
+                    var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
                     await DoRefresh(uibases);
                     currentPanel.gameObject.SetActive(false);
                     DoHide(currentUIBases);
@@ -715,6 +736,18 @@ namespace Feif.UIFramework
             {
                 Debug.LogException(ex);
             }
+        }
+
+        private static UIBase GetParent(UIBase ui)
+        {
+            var parent = ui.transform.parent;
+            while (parent != null)
+            {
+                var uibase = parent.GetComponent<UIBase>();
+                if (uibase != null) return uibase;
+                parent = parent.parent;
+            }
+            return null;
         }
     }
 }
