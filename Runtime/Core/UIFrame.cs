@@ -283,10 +283,11 @@ namespace Feif.UIFramework
                 .Where(item => item.GetComponent<UIBase>() != null)
                 .Select(item => item.GetComponent<UIBase>())
                 .ToArray();
+            var parentUI = GetParent(uibases.FirstOrDefault());
             foreach (var item in uibases)
             {
-                var parentUI = GetParent(item);
-                if (parentUI == null) continue;
+                if (parentUI == null) break;
+                if (GetParent(item) != parentUI) break;
                 parentUI.Children.Remove(item);
             }
             foreach (var item in uibases)
@@ -313,10 +314,11 @@ namespace Feif.UIFramework
                .Where(item => item.GetComponent<UIBase>() != null)
                .Select(item => item.GetComponent<UIBase>())
                .ToArray();
+            var parentUI = GetParent(uibases.FirstOrDefault());
             foreach (var item in uibases)
             {
-                var parentUI = GetParent(item);
-                if (parentUI == null) continue;
+                if (parentUI == null) break;
+                if (GetParent(item) != parentUI) break;
                 parentUI.Children.Remove(item);
             }
             foreach (var item in uibases)
@@ -395,13 +397,8 @@ namespace Feif.UIFramework
 
             var refInstance = await OnAssetRequest?.Invoke(type);
             var parent = IsPanel(refInstance.GetComponent<UIBase>()) ? PanelLayer : WindowLayer;
-            bool refActiveSelf = refInstance.activeSelf;
-
-            refInstance.SetActive(false);
             instance = await UIFrame.Instantiate(refInstance, parent, data);
-            refInstance.SetActive(refActiveSelf);
             instances[type] = instance;
-
             return instance;
         }
 
@@ -538,14 +535,17 @@ namespace Feif.UIFramework
 
         private static async Task<GameObject> InstantiateAsync(GameObject prefab, Transform parent, UIData data)
         {
+            bool refActiveSelf = prefab.activeSelf;
+            prefab.SetActive(false);
             var instance = GameObject.Instantiate(prefab, parent);
+            prefab.SetActive(refActiveSelf);
             var uibase = instance.GetComponent<UIBase>();
             var uibases = instance.transform.BreadthTraversal()
                 .Where(item => item.GetComponent<UIBase>() != null)
                 .Select(item => item.GetComponent<UIBase>())
                 .ToArray();
             TrySetData(instance.GetComponent<UIBase>(), data);
-            foreach(var item in uibases)
+            foreach (var item in uibases)
             {
                 item.Children.Clear();
             }
@@ -570,6 +570,7 @@ namespace Feif.UIFramework
             if (!IsPanel(uibase) && !IsWindow(uibase))
             {
                 await DoRefresh(uibases);
+                instance.SetActive(true);
                 DoBind(uibases);
                 DoShow(uibases);
             }
@@ -740,6 +741,8 @@ namespace Feif.UIFramework
 
         private static UIBase GetParent(UIBase ui)
         {
+            if (ui == null) return null;
+
             var parent = ui.transform.parent;
             while (parent != null)
             {

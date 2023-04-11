@@ -5,9 +5,18 @@ using Feif.UIFramework;
 using System.Text.RegularExpressions;
 using UnityEngine.Networking;
 using System.Linq;
+using Feif.Extensions;
 
 namespace Feif.UI
 {
+    public class StarData_Demo2
+    {
+        public string login;
+        public int id;
+        public string avatar_url;
+        public string name;
+    }
+
     // 这是一个Window，不需要UIData则继承UIBase，需要UIData则继承UIComponent
     [UIWindow]
     public class UIStarred_Demo2 : UIBase

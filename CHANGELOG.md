@@ -1,6 +1,11 @@
 # Changelog
 
 这是更新日志
+## [1.0.8] - 2023-04-11
+
+### Fixed
+- 修复UIFrame.Instantiate创建物体时还未初始化完成就显示出来的BUG
+- Demo添加到UIFrame.Demo程序集中
 
 ## [1.0.7] - 2023-04-10
 

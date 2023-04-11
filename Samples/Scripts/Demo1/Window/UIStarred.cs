@@ -6,9 +6,18 @@ using Feif.UIFramework;
 using System.Text.RegularExpressions;
 using UnityEngine.Networking;
 using System.Linq;
+using Feif.Extensions;
 
 namespace Feif.UI
 {
+    public class StarData
+    {
+        public string login;
+        public int id;
+        public string avatar_url;
+        public string name;
+    }
+
     // 这是一个Window，不需要UIData则继承UIBase，需要UIData则继承UIComponent
     [UIWindow]
     public class UIStarred : UIBase
@@ -16,7 +25,6 @@ namespace Feif.UI
         [SerializeField] private RectTransform content;
         [SerializeField] private Button btnClose;
         [SerializeField] private Button btnStar;
-
         [SerializeField] private GameObject refItem;
 
         private UIWindowEffect effect;

@@ -10,14 +10,6 @@ namespace Feif.UI
         public string Title;
     }
 
-    public class StarData_Demo2
-    {
-        public string login;
-        public int id;
-        public string avatar_url;
-        public string name;
-    }
-
     [UIPanel]
     public class UITestB_Demo2 : UIComponent<UITestBData_Demo2>
     {
