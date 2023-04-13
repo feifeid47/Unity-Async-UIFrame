@@ -16,15 +16,19 @@ namespace Feif.UI
         protected override async Task OnRefresh()
         {
             Debug.Log("Refresh SubUIA");
-            using var request = UnityWebRequest.Get("https://cube.meituan.com/ipromotion/cube/toc/component/base/getServerCurrentTime");
-            using var response = await request.SendWebRequest();
-            if (response.result != UnityWebRequest.Result.Success)
+            using (var request = UnityWebRequest.Get("https://cube.meituan.com/ipromotion/cube/toc/component/base/getServerCurrentTime"))
             {
-                txtContent.text = "网络请求失败";
-                return;
+                using (var response = await request.SendWebRequest())
+                {
+                    if (response.responseCode != 200)
+                    {
+                        txtContent.text = "网络请求失败";
+                        return;
+                    }
+                    var json = response.downloadHandler.text;
+                    txtContent.text = $"刷新次数 = {++refreshCount}\n{json}";
+                }
             }
-            var json = response.downloadHandler.text;
-            txtContent.text = $"刷新次数 = {++refreshCount}\n{json}";
         }
 
         [UGUIButtonEvent]

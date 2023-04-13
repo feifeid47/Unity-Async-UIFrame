@@ -17,7 +17,7 @@ namespace Feif
             var request = UnityWebRequest.Get(uri);
             request.SendWebRequest().completed += _ =>
             {
-                if (request.result != UnityWebRequest.Result.Success)
+                if (request.responseCode != 200)
                 {
                     completionSource.SetResult(null);
                     request.Dispose();
@@ -46,7 +46,7 @@ namespace Feif
             var request = UnityWebRequestTexture.GetTexture(uri);
             request.SendWebRequest().completed += _ =>
             {
-                if (request.result != UnityWebRequest.Result.Success)
+                if (request.responseCode != 200)
                 {
                     completionSource.SetResult(null);
                     request.Dispose();
@@ -76,7 +76,7 @@ namespace Feif
             var request = UnityWebRequestTexture.GetTexture(uri);
             request.SendWebRequest().completed += _ =>
             {
-                if (request.result != UnityWebRequest.Result.Success)
+                if (request.responseCode != 200)
                 {
                     completionSource.SetResult(null);
                     request.Dispose();
@@ -107,7 +107,7 @@ namespace Feif
             var request = UnityWebRequestMultimedia.GetAudioClip(uri, audioType);
             request.SendWebRequest().completed += _ =>
             {
-                if (request.result != UnityWebRequest.Result.Success)
+                if (request.responseCode != 200)
                 {
                     completionSource.SetResult(null);
                     request.Dispose();
@@ -137,7 +137,7 @@ namespace Feif
             var request = UnityWebRequestAssetBundle.GetAssetBundle(uri);
             request.SendWebRequest().completed += _ =>
             {
-                if (request.result != UnityWebRequest.Result.Success)
+                if (request.responseCode != 200)
                 {
                     completionSource.SetResult(null);
                     request.Dispose();

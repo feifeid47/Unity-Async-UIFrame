@@ -1,12 +1,19 @@
 {
     "name": "com.feif.uiframe",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "displayName": "UIFrame",
     "description": "异步UI框架",
-    "unity": "2019.1",
-    "unityRelease": "0b5",
+    "unity": "2019.4",
+    "unityRelease": "0f1",
     "documentationUrl": "https://github.com/feifeid47/Unity-Async-UIFrame/blob/main/README.md",
     "changelogUrl": "https://github.com/feifeid47/Unity-Async-UIFrame/blob/main/CHANGELOG.md",
+    "samples": [
+        {
+            "displayName": "Demo",
+            "description": "UIFrame Demo",
+            "path": "Samples~"
+        }
+    ],
     "keywords": [
         "uiframe",
         "ugui"

@@ -4,7 +4,6 @@ using UnityEngine;
 using Feif.UIFramework;
 using System.Text.RegularExpressions;
 using UnityEngine.Networking;
-using System.Linq;
 using Feif.Extensions;
 
 namespace Feif.UI
@@ -88,28 +87,31 @@ namespace Feif.UI
         // 获得关注列表
         public static async Task<List<StarData_Demo2>> GetStarList()
         {
-            using var request = UnityWebRequest.Get("https://api.github.com/repos/feifeid47/Unity-Async-UIFrame/stargazers?per_page=100");
-            using var response = await request.SendWebRequest();
-
-            if (response.result != UnityWebRequest.Result.Success) return null;
-
-            var json = response.downloadHandler.text;
-            var regex = new Regex("\"id\": *\\d*");
-            var matches = regex.Matches(json);
-            var ids = matches.Select(item =>
+            using (var request = UnityWebRequest.Get("https://api.github.com/repos/feifeid47/Unity-Async-UIFrame/stargazers?per_page=100"))
             {
-                var str = item.Value;
-                return int.Parse(str.Replace("\"id\"", string.Empty).Trim(':').Trim());
-            }).ToList();
-            var result = new List<StarData_Demo2>();
-            foreach (var id in ids)
-            {
-                using var request2 = UnityWebRequest.Get($"https://api.github.com/user/{id}");
-                using var response2 = await request2.SendWebRequest();
-                Debug.Log($"获取用户信息：{id}");
-                result.Add(JsonUtility.FromJson<StarData_Demo2>(response2.downloadHandler.text));
+                using (var response = await request.SendWebRequest())
+                {
+                    if (response.responseCode != 200) return null;
+
+                    var json = response.downloadHandler.text;
+                    var regex = new Regex("\"id\": *\\d*");
+                    var matches = regex.Matches(json);
+                    var result = new List<StarData_Demo2>();
+                    foreach (Match item in matches)
+                    {
+                        var id = int.Parse(item.Value.Replace("\"id\"", string.Empty).Trim(':').Trim());
+                        using (var request2 = UnityWebRequest.Get($"https://api.github.com/user/{id}"))
+                        {
+                            using (var response2 = await request2.SendWebRequest())
+                            {
+                                Debug.Log($"获取用户信息：{id}");
+                                result.Add(JsonUtility.FromJson<StarData_Demo2>(response2.downloadHandler.text));
+                            }
+                        }
+                    }
+                    return result;
+                }
             }
-            return result;
         }
     }
 }

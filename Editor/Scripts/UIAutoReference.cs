@@ -6,8 +6,13 @@ using System.Reflection;
 using System;
 using System.Collections;
 using UnityObject = UnityEngine.Object;
-using UnityEditor.SceneManagement;
 using Feif.Extensions;
+
+# if UNITY_2020_1_OR_NEWER
+using UnityEditor.SceneManagement;
+#else
+using UnityEditor.Experimental.SceneManagement;
+#endif
 
 namespace Feif.UIFramework.Editor
 {
@@ -110,7 +115,7 @@ namespace Feif.UIFramework.Editor
                     .Select(item => item.GetComponent(fieldType))
                     .FirstOrDefault(item =>
                     {
-                        if (!item.name.StartsWith('@')) return false;
+                        if (!item.name.StartsWith("@")) return false;
                         return field.Name.ToUpper() == item.name.Trim('@').ToUpper();
                     });
 
