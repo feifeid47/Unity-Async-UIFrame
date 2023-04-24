@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0] - 2023-04-24
+
+### Changed
+- UIFrame.Refresh新增默认参数
+- UIFrame.TrySetData改为私有
+
 这是更新日志
 ## [1.0.9] - 2023-04-13
 

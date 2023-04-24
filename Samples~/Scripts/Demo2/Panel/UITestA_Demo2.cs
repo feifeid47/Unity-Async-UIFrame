@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using Feif.UIFramework;
+using System;
 
 namespace Feif.UI
 {
@@ -31,6 +32,16 @@ namespace Feif.UI
             };
             // 显示下一个Panel
             UIFrame.Show<UITestB_Demo2>(data);
+        }
+
+        [UGUIButtonEvent]
+        protected void OnBtnRefresh()
+        {
+            // 刷新，使用新的UIData刷新
+            UIFrame.Refresh(this, new UITestAData_Demo2()
+            {
+                Title = DateTime.Now.ToString()
+            });
         }
     }
 }

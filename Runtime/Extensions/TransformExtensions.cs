@@ -10,6 +10,8 @@ namespace Feif.Extensions
         /// </summary>
         public static IEnumerable<Transform> DepthTraversal(this Transform root)
         {
+            if (root == null) yield break;
+
             var stack = new Stack<Transform>();
             stack.Push(root);
             while (stack.Count > 0)
@@ -28,6 +30,8 @@ namespace Feif.Extensions
         /// </summary>
         public static IEnumerable<Transform> BreadthTraversal(this Transform root)
         {
+            if (root == null) yield break;
+
             var queue = new Queue<Transform>();
             queue.Enqueue(root);
             while (queue.Count > 0)

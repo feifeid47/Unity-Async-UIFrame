@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using Feif.UIFramework;
+using System;
 
 namespace Feif.UI
 {
@@ -15,6 +16,7 @@ namespace Feif.UI
     {
         [SerializeField] private Text txtTitle;
         [SerializeField] private Button btnNext;
+        [SerializeField] private Button btnRefresh;
 
         protected override Task OnRefresh()
         {
@@ -26,11 +28,13 @@ namespace Feif.UI
         protected override void OnBind()
         {
             btnNext.onClick.AddListener(OnBtnNext);
+            btnRefresh.onClick.AddListener(OnBtnRefresh);
         }
 
         protected override void OnUnbind()
         {
             btnNext.onClick.RemoveListener(OnBtnNext);
+            btnRefresh.onClick.RemoveListener(OnBtnRefresh);
         }
 
         private void OnBtnNext()
@@ -41,6 +45,15 @@ namespace Feif.UI
             };
             // 显示下一个Panel
             UIFrame.Show<UITestB>(data);
+        }
+
+        private void OnBtnRefresh()
+        {
+            // 刷新，使用新的UIData刷新
+            UIFrame.Refresh(this, new UITestAData()
+            {
+                Title = DateTime.Now.ToString()
+            });
         }
     }
 }

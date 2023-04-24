@@ -131,13 +131,6 @@ namespace Feif.UIFramework
         #endregion        
 
         #region 显示
-        /// <summary>
-        /// 显示UI
-        /// </summary>
-        public static Task Show<T>(UIData data = null)
-        {
-            return Show(typeof(T), data);
-        }
 
         /// <summary>
         /// 显示UI
@@ -148,10 +141,20 @@ namespace Feif.UIFramework
         }
 
         /// <summary>
-        /// 显示UI
+        /// 显示Panel或Window
+        /// </summary>
+        public static Task Show<T>(UIData data = null)
+        {
+            return Show(typeof(T), data);
+        }
+
+        /// <summary>
+        /// 显示Panel或Window
         /// </summary>
         public static Task Show(Type type, UIData data = null)
         {
+            if (!IsPanel(type) && !IsWindow(type)) throw new InvalidOperationException("显示Panel或Window失败，请使用[UIPanel]或[UIWindow]标记类");
+
             return ShowAsync(type, data);
         }
 
@@ -160,7 +163,7 @@ namespace Feif.UIFramework
         #region 隐藏
 
         /// <summary>
-        /// 隐藏UI
+        /// 隐藏Panel
         /// </summary>
         public static Task Hide()
         {
@@ -168,7 +171,7 @@ namespace Feif.UIFramework
         }
 
         /// <summary>
-        /// 隐藏UI
+        /// 隐藏Panel或Window
         /// </summary>
         public static Task Hide<T>()
         {
@@ -176,7 +179,7 @@ namespace Feif.UIFramework
         }
 
         /// <summary>
-        /// 隐藏UI
+        /// 隐藏Panel或Window
         /// </summary>
         public static Task Hide(Type type)
         {
@@ -195,13 +198,11 @@ namespace Feif.UIFramework
             }
             if (IsPanel(type))
             {
-                if (CurrentPanel != null && CurrentPanel.GetType() == type)
-                {
-                    return Hide();
-                }
+                if (CurrentPanel != null && CurrentPanel.GetType() == type) return Hide();
+
                 throw new InvalidOperationException(type.ToString() + "不是当前正在显示的Panel，请使用UIFrame.Hide()来隐藏当前Panel");
             }
-            throw new InvalidOperationException("请使用UIPanel或UIWindow标记类");
+            throw new InvalidOperationException("隐藏Panel或Window失败，请使用[UIPanel]或[UIWindow]标记类");
         }
 
         /// <summary>
@@ -225,31 +226,39 @@ namespace Feif.UIFramework
 
         #region 刷新
         /// <summary>
-        /// 刷新UI
+        /// 刷新UI。data为null时，将用之前的data刷新
         /// </summary>
-        public static Task Refresh<T>()
+        public static Task Refresh<T>(UIData data = null)
         {
-            return Refresh(typeof(T));
+            return Refresh(typeof(T), data);
         }
 
         /// <summary>
-        /// 刷新UI
+        /// 刷新UI。data为null时将用之前的data刷新
         /// </summary>
-        public static Task Refresh(Type type)
+        public static Task Refresh(Type type, UIData data = null)
         {
             if (type != null && instances.TryGetValue(type, out var instance))
             {
-                return Refresh(instance.GetComponent<UIBase>());
+                return Refresh(instance.GetComponent<UIBase>(), data);
             }
             return Task.CompletedTask;
         }
 
         /// <summary>
-        /// 刷新UI
+        /// 刷新UI。data为null时将用之前的data刷新
         /// </summary>
-        public static Task Refresh(UIBase ui)
+        public static Task Refresh(UIBase ui, UIData data = null)
         {
+            if (!ui.gameObject.activeInHierarchy) return Task.CompletedTask;
+
             var uibases = ui.BreadthTraversal().ToArray();
+            if (data != null) TrySetData(ui, data);
+            if (panelStack.Count > 0 && IsPanel(ui))
+            {
+                var (type, _) = panelStack.Pop();
+                panelStack.Push((type, data));
+            }
             return DoRefresh(uibases);
         }
         #endregion
@@ -260,18 +269,6 @@ namespace Feif.UIFramework
         public static Task<GameObject> Instantiate(GameObject prefab, Transform parent = null, UIData data = null)
         {
             return InstantiateAsync(prefab, parent, data);
-        }
-
-        /// <summary>
-        /// 为UI设置数据
-        /// </summary>
-        public static bool TrySetData(UIBase ui, UIData data)
-        {
-            if (ui == null) return false;
-            var property = ui.GetType().GetProperty("Data", BindingFlags.Public | BindingFlags.Instance);
-            if (property == null) return false;
-            property.SetValue(ui, data);
-            return true;
         }
 
         /// <summary>
@@ -287,7 +284,9 @@ namespace Feif.UIFramework
             foreach (var item in uibases)
             {
                 if (parentUI == null) break;
+
                 if (GetParent(item) != parentUI) break;
+
                 parentUI.Children.Remove(item);
             }
             foreach (var item in uibases)
@@ -318,7 +317,9 @@ namespace Feif.UIFramework
             foreach (var item in uibases)
             {
                 if (parentUI == null) break;
+
                 if (GetParent(item) != parentUI) break;
+
                 parentUI.Children.Remove(item);
             }
             foreach (var item in uibases)
@@ -358,8 +359,9 @@ namespace Feif.UIFramework
         public static bool IsPanel(Type type)
         {
             if (Attribute.IsDefined(type, typeof(UIPanelAttribute)) && Attribute.IsDefined(type, typeof(UIWindowAttribute)))
-                throw new InvalidOperationException("不能同时定义UIPanel属性和UIWindow属性");
-
+            {
+                throw new InvalidOperationException("不能同时定义[UIPanel]属性和[UIWindow]属性");
+            }
             return Attribute.IsDefined(type, typeof(UIPanelAttribute));
         }
 
@@ -369,8 +371,9 @@ namespace Feif.UIFramework
         public static bool IsWindow(Type type)
         {
             if (Attribute.IsDefined(type, typeof(UIPanelAttribute)) && Attribute.IsDefined(type, typeof(UIWindowAttribute)))
-                throw new InvalidOperationException("不能同时定义UIPanel属性和UIWindow属性");
-
+            {
+                throw new InvalidOperationException("不能同时定义[UIPanel]属性和[UIWindow]属性");
+            }
             return Attribute.IsDefined(type, typeof(UIWindowAttribute));
         }
 
@@ -393,6 +396,7 @@ namespace Feif.UIFramework
         private static async Task<GameObject> RequestInstance(Type type, UIData data)
         {
             if (type == null) throw new NullReferenceException();
+
             if (instances.TryGetValue(type, out var instance)) return instance;
 
             var refInstance = await OnAssetRequest?.Invoke(type);
@@ -405,6 +409,7 @@ namespace Feif.UIFramework
         private static void ReleaseInstance(Type type)
         {
             if (type == null) return;
+
             if (instances.TryGetValue(type, out var instance))
             {
                 var root = instance.GetComponent<UIBase>();
@@ -737,6 +742,15 @@ namespace Feif.UIFramework
             {
                 Debug.LogException(ex);
             }
+        }
+
+        private static bool TrySetData(UIBase ui, UIData data)
+        {
+            if (ui == null) return false;
+            var property = ui.GetType().GetProperty("Data", BindingFlags.Public | BindingFlags.Instance);
+            if (property == null) return false;
+            property.SetValue(ui, data);
+            return true;
         }
 
         private static UIBase GetParent(UIBase ui)

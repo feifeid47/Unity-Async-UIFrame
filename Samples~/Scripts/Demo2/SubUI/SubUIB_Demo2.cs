@@ -32,12 +32,11 @@ namespace Feif.UI
         [UGUIButtonEvent]
         protected void OnBtnRefresh()
         {
-            Data = new SubUIBData_Demo2()
-            {
-                Content = $"来自自身的刷新调用 {Random.Range(0, 100)}"
-            };
             // 刷新当前UI
-            UIFrame.Refresh(this);
+            UIFrame.Refresh(this, new SubUIBData_Demo2()
+            {
+                Content = $"来自自身的刷新调用 {Random.Range(200,300)}"
+            });
         }
     }
 }

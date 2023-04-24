@@ -30,6 +30,8 @@ namespace Feif.Extensions
         /// </summary>
         public static IEnumerable<UIBase> DepthTraversal(this UIBase root)
         {
+            if (root == null) yield break;
+
             var stack = new Stack<UIBase>();
             stack.Push(root);
             while (stack.Count > 0)

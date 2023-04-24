@@ -89,6 +89,7 @@ namespace Feif.UI
 
         private void OnBtnRefresh()
         {
+            // 刷新，使用已有的UIData刷新
             UIFrame.Refresh(this);
         }
     }
