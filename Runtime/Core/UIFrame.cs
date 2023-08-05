@@ -786,7 +786,11 @@ namespace Feif.UIFramework
                     isStuck = true;
                 });
 
-                if (CurrentPanel == null) return;
+                if (CurrentPanel == null)
+                {
+                    timeout.Cancel();
+                    return;
+                }
 
                 var currentPanel = CurrentPanel;
                 var currentUIBases = currentPanel.BreadthTraversal().ToArray();
