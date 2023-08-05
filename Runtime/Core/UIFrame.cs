@@ -128,14 +128,13 @@ namespace Feif.UIFramework
         /// UI销毁时调用
         /// </summary>
         public static event Action<UIBase> OnDied;
-        #endregion        
+        #endregion
 
         #region 显示
-
         /// <summary>
         /// 显示UI
         /// </summary>
-        public static Task Show(UIBase ui, UIData data = null)
+        public static Task<UIBase> Show(UIBase ui, UIData data = null)
         {
             return ShowAsync(ui, data);
         }
@@ -143,45 +142,43 @@ namespace Feif.UIFramework
         /// <summary>
         /// 显示Panel或Window
         /// </summary>
-        public static Task Show<T>(UIData data = null)
+        public static Task<T> Show<T>(UIData data = null) where T : UIBase
         {
-            return Show(typeof(T), data);
+            return ShowAsync<T>(data);
         }
 
         /// <summary>
         /// 显示Panel或Window
         /// </summary>
-        public static Task Show(Type type, UIData data = null)
+        public static Task<UIBase> Show(Type type, UIData data = null)
         {
             if (!IsPanel(type) && !IsWindow(type)) throw new InvalidOperationException("显示Panel或Window失败，请使用[UIPanel]或[UIWindow]标记类");
 
             return ShowAsync(type, data);
         }
-
         #endregion
 
         #region 隐藏
-
         /// <summary>
         /// 隐藏Panel
         /// </summary>
-        public static Task Hide()
+        public static Task Hide(bool forceDestroy = false)
         {
-            return HideAsync();
+            return HideAsync(forceDestroy);
         }
 
         /// <summary>
         /// 隐藏Panel或Window
         /// </summary>
-        public static Task Hide<T>()
+        public static Task Hide<T>(bool forceDestroy = false)
         {
-            return Hide(typeof(T));
+            return Hide(typeof(T), forceDestroy);
         }
 
         /// <summary>
         /// 隐藏Panel或Window
         /// </summary>
-        public static Task Hide(Type type)
+        public static Task Hide(Type type, bool forceDestroy = false)
         {
             if (IsWindow(type))
             {
@@ -192,7 +189,7 @@ namespace Feif.UIFramework
                     DoUnbind(uibases);
                     DoHide(uibases);
                     instance.SetActive(false);
-                    ReleaseInstance(type);
+                    if (uibase.AutoDestroy || forceDestroy) ReleaseInstance(type);
                 }
                 return Task.CompletedTask;
             }
@@ -206,9 +203,9 @@ namespace Feif.UIFramework
         }
 
         /// <summary>
-        /// 隐藏UI
+        /// 隐藏UI，forceDestroy对子UI无效。
         /// </summary>
-        public static Task Hide(UIBase ui)
+        public static Task Hide(UIBase ui, bool forceDestroy = false)
         {
             if (!IsPanel(ui) && !IsWindow(ui))
             {
@@ -220,7 +217,65 @@ namespace Feif.UIFramework
                 ui.gameObject.SetActive(false);
                 return Task.CompletedTask;
             }
-            return Hide(ui.GetType());
+            return Hide(ui.GetType(), forceDestroy);
+        }
+        #endregion
+
+        #region 获得
+        /// <summary>
+        /// 获得已经实例化的UI
+        /// </summary>
+        public static UIBase Get(Type type)
+        {
+            if (instances.TryGetValue(type, out var instance))
+            {
+                return instance.GetComponent<UIBase>();
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 获得已经实例化的UI
+        /// </summary>
+        public static UIBase Get<T>()
+        {
+            return Get(typeof(T));
+        }
+
+        /// <summary>
+        /// 获得已经实例化的UI
+        /// </summary>
+        public static bool TryGet<T>(out UIBase ui)
+        {
+            ui = Get<T>();
+            return ui != null;
+        }
+
+        /// <summary>
+        /// 获得已经实例化的UI
+        /// </summary>
+        public static bool TryGet(Type type, out UIBase ui)
+        {
+            ui = Get(type);
+            return ui != null;
+        }
+
+        /// <summary>
+        /// 获得所有已经实例化的UI
+        /// </summary>
+        public static IEnumerable<UIBase> GetAll(Func<Type, bool> predicate = null)
+        {
+            foreach (var item in instances)
+            {
+                if (predicate == null)
+                {
+                    yield return item.Value.GetComponent<UIBase>();
+                }
+                else if (predicate != null && predicate(item.Key))
+                {
+                    yield return item.Value.GetComponent<UIBase>();
+                }
+            }
         }
         #endregion
 
@@ -260,6 +315,24 @@ namespace Feif.UIFramework
                 panelStack.Push((type, data));
             }
             return DoRefresh(uibases);
+        }
+
+        /// <summary>
+        /// 刷新所有UI
+        /// </summary>
+        public static async Task RefreshAll(Func<Type, bool> predicate = null)
+        {
+            foreach (var item in instances)
+            {
+                if (predicate == null)
+                {
+                    await Refresh(item.Value.GetComponent<UIBase>());
+                }
+                else if (predicate != null && predicate(item.Key))
+                {
+                    await Refresh(item.Value.GetComponent<UIBase>());
+                }
+            }
         }
         #endregion
 
@@ -413,9 +486,6 @@ namespace Feif.UIFramework
             if (instances.TryGetValue(type, out var instance))
             {
                 var root = instance.GetComponent<UIBase>();
-
-                if (!root.AutoDestroy) return;
-
                 UIFrame.Destroy(instance);
                 OnAssetRelease?.Invoke(type);
                 instances.Remove(type);
@@ -582,13 +652,13 @@ namespace Feif.UIFramework
             return instance;
         }
 
-        private static async Task ShowAsync(UIBase ui, UIData data = null)
+        private static async Task<UIBase> ShowAsync(UIBase ui, UIData data = null)
         {
             try
             {
                 if (!IsPanel(ui) && !IsWindow(ui))
                 {
-                    if (ui.gameObject.activeSelf) return;
+                    if (ui.gameObject.activeSelf) return ui;
 
                     TrySetData(ui, data);
                     var timeout = new CancellationTokenSource();
@@ -618,22 +688,29 @@ namespace Feif.UIFramework
 
                     if (isStuck) OnStuckEnd?.Invoke();
 
-                    return;
+                    return ui;
                 }
-                await Show(ui.GetType(), data);
+                return await Show(ui.GetType(), data);
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
+                return null;
             }
         }
 
-        private static async Task ShowAsync(Type type, UIData data = null)
+        public static async Task<T> ShowAsync<T>(UIData data = null) where T : UIBase
+        {
+            var result = await Show(typeof(T), data);
+            return result as T;
+        }
+
+        private static async Task<UIBase> ShowAsync(Type type, UIData data = null)
         {
             try
             {
                 var timeout = new CancellationTokenSource();
-
+                UIBase result = null;
                 bool isStuck = false;
                 Task.Delay(TimeSpan.FromSeconds(StuckTime)).GetAwaiter().OnCompleted(() =>
                 {
@@ -643,7 +720,7 @@ namespace Feif.UIFramework
                 });
                 if (IsPanel(type))
                 {
-                    if (CurrentPanel != null && type == CurrentPanel.GetType()) return;
+                    if (CurrentPanel != null && type == CurrentPanel.GetType()) return CurrentPanel;
                     UIBase[] currentUIBases = null;
                     if (CurrentPanel != null)
                     {
@@ -661,12 +738,13 @@ namespace Feif.UIFramework
                     {
                         DoHide(currentUIBases);
                         CurrentPanel.gameObject.SetActive(false);
-                        ReleaseInstance(CurrentPanel.GetType());
+                        if (CurrentPanel.AutoDestroy) ReleaseInstance(CurrentPanel.GetType());
                     }
                     instance.SetActive(true);
                     panelStack.Push((type, data));
                     DoBind(uibases);
                     DoShow(uibases);
+                    result = instance.GetComponent<UIBase>();
                 }
                 if (IsWindow(type))
                 {
@@ -681,17 +759,20 @@ namespace Feif.UIFramework
                     instance.transform.SetAsLastSibling();
                     DoBind(uibases);
                     DoShow(uibases);
+                    result = instance.GetComponent<UIBase>();
                 }
                 timeout.Cancel();
                 if (isStuck) OnStuckEnd?.Invoke();
+                return result;
             }
             catch (Exception ex)
             {
                 Debug.LogException(ex);
+                return null;
             }
         }
 
-        private static async Task HideAsync()
+        private static async Task HideAsync(bool forceDestroy)
         {
             try
             {
@@ -723,7 +804,7 @@ namespace Feif.UIFramework
                     await DoRefresh(uibases);
                     currentPanel.gameObject.SetActive(false);
                     DoHide(currentUIBases);
-                    ReleaseInstance(currentPanel.GetType());
+                    if (currentPanel.AutoDestroy || forceDestroy) ReleaseInstance(currentPanel.GetType());
                     instance.SetActive(true);
                     instance.transform.SetAsLastSibling();
                     DoBind(uibases);
@@ -733,7 +814,7 @@ namespace Feif.UIFramework
                 {
                     currentPanel.gameObject.SetActive(false);
                     DoHide(currentUIBases);
-                    ReleaseInstance(currentPanel.GetType());
+                    if (currentPanel.AutoDestroy || forceDestroy) ReleaseInstance(currentPanel.GetType());
                 }
                 timeout.Cancel();
                 if (isStuck) OnStuckEnd?.Invoke();

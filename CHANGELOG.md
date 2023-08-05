@@ -1,12 +1,38 @@
 # Changelog
 
+## [1.1.1] - 2023-08-05
+
+### Changed
+- UIFrame.Show带返回值，返回显示的UI
+- UIFrame.Hide新增forceDestroy参数，隐藏UI时并强制销毁(即使AutoDestroy为false)
+
+### Added
+- 新增UIFrame.Get和UIFrame.TryGet，获得已经实例化的UI
+- 新增UIFrame.GetAll，获得所有已经实例化的UI
+- 新增UIFrame.RefreshAll，刷新所有UI
+```
+UIFrame.GetAll
+可以通过predicate方法来筛选
+例如：
+（1）所有已经实例化的UI，UIGrame.GetAll();
+（2）所有已经实例化的Panel，UIFrame.GetAll(type => UIFrame.IsPanel(type));
+（3）所有已经实例化的Window，UIFrame.GetAll(type => UIFrame.IsWindow(type));
+（4）所有已经实例化的可见的UI，UIFrame.GetAll(type => UIFrame.Get(type).gameObject.activeInHierarchy);
+
+UIFrame.RefreshAll
+使用场景：
+（1）切换多语言时刷新所有UI，更新界面显示的语言
+（2）其他需要刷新所有UI的情况
+```
+### Fixed
+- 修复timeout可能存在未Cancel的情况
+
 ## [1.1.0] - 2023-04-24
 
 ### Changed
 - UIFrame.Refresh新增默认参数
 - UIFrame.TrySetData改为私有
 
-这是更新日志
 ## [1.0.9] - 2023-04-13
 
 ### Added
