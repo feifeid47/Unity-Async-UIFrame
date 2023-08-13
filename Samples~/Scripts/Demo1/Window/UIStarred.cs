@@ -18,7 +18,7 @@ namespace Feif.UI
     }
 
     // 这是一个Window，不需要UIData则继承UIBase，需要UIData则继承UIComponent
-    [UIWindow]
+    [WindowLayer]
     public class UIStarred : UIBase
     {
         [SerializeField] private RectTransform content;

@@ -10,7 +10,7 @@ namespace Feif.UI
         public string Title;
     }
 
-    [UIPanel]
+    [PanelLayer]
     public class UITestB : UIComponent<UITestBData>
     {
         [SerializeField] private Text txtTitle;

@@ -11,7 +11,7 @@ namespace Feif.UI
     {
     }
 
-    [UIPanel]
+    [PanelLayer]
     public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Data>
     {
         protected override Task OnCreate()

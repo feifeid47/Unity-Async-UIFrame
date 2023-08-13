@@ -31,14 +31,8 @@ namespace Feif
         // 可以使用Addressables，YooAssets等第三方资源管理系统
         private Task<GameObject> OnAssetRequest(Type type)
         {
-            if (UIFrame.IsPanel(type))
-            {
-                return Task.FromResult(Resources.Load<GameObject>($"Demo1/Panel/{type.Name}"));
-            }
-            else
-            {
-                return Task.FromResult(Resources.Load<GameObject>($"Demo1/Window/{type.Name}"));
-            }
+            var layer = UIFrame.GetLayer(type);
+            return Task.FromResult(Resources.Load<GameObject>($"Demo1/{layer.GetName()}/{type.Name}"));
         }
 
         // 资源释放事件

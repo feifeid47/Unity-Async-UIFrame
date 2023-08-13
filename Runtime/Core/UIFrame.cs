@@ -15,20 +15,11 @@ namespace Feif.UIFramework
     {
         private static readonly Dictionary<Type, GameObject> instances = new Dictionary<Type, GameObject>();
         private static readonly Stack<(Type type, UIData data)> panelStack = new Stack<(Type, UIData)>();
+        private static readonly Dictionary<UILayer, RectTransform> uiLayers = new Dictionary<UILayer, RectTransform>();
+        private static RectTransform layerTransform;
 
-        [SerializeField] private RectTransform panelLayer;
-        [SerializeField] private RectTransform windowLayer;
+        [SerializeField] private RectTransform layers;
         [SerializeField] private Canvas canvas;
-
-        /// <summary>
-        /// Panel层级
-        /// </summary>
-        public static RectTransform PanelLayer { get; private set; }
-
-        /// <summary>
-        /// Window层级
-        /// </summary>
-        public static RectTransform WindowLayer { get; private set; }
 
         /// <summary>
         /// UI画布
@@ -66,10 +57,16 @@ namespace Feif.UIFramework
 
         private void Awake()
         {
+            if (canvas == null) throw new Exception("UIFrame初始化失败，请设置Canvas");
+            if (canvas.worldCamera == null) throw new Exception("UIFrame初始化失败，请给Canvas设置worldCamera");
+            if (layers == null) throw new Exception("UIFrame初始化失败，请设置layers");
             Canvas = canvas;
             Camera = canvas.worldCamera;
-            PanelLayer = panelLayer;
-            WindowLayer = windowLayer;
+            layerTransform = layers;
+            layerTransform.anchorMin = Vector2.zero;
+            layerTransform.anchorMax = Vector2.one;
+            layerTransform.offsetMin = Vector2.zero;
+            layerTransform.offsetMax = Vector2.zero;
             DontDestroyOnLoad(gameObject);
         }
 
@@ -152,7 +149,7 @@ namespace Feif.UIFramework
         /// </summary>
         public static Task<UIBase> Show(Type type, UIData data = null)
         {
-            if (!IsPanel(type) && !IsWindow(type)) throw new InvalidOperationException("显示Panel或Window失败，请使用[UIPanel]或[UIWindow]标记类");
+            if (GetLayer(type) == null) throw new Exception("请使用[UILayer]子类标记类，显示子UI请使用Show(UIBase ui)");
 
             return ShowAsync(type, data);
         }
@@ -180,7 +177,13 @@ namespace Feif.UIFramework
         /// </summary>
         public static Task Hide(Type type, bool forceDestroy = false)
         {
-            if (IsWindow(type))
+            if (GetLayer(type) is PanelLayer)
+            {
+                if (CurrentPanel != null && CurrentPanel.GetType() == type) return Hide();
+
+                throw new Exception(type.ToString() + "不是当前正在显示的Panel，请使用UIFrame.Hide()来隐藏当前Panel");
+            }
+            else if (GetLayer(type) != null)
             {
                 if (instances.TryGetValue(type, out var instance))
                 {
@@ -193,13 +196,7 @@ namespace Feif.UIFramework
                 }
                 return Task.CompletedTask;
             }
-            if (IsPanel(type))
-            {
-                if (CurrentPanel != null && CurrentPanel.GetType() == type) return Hide();
-
-                throw new InvalidOperationException(type.ToString() + "不是当前正在显示的Panel，请使用UIFrame.Hide()来隐藏当前Panel");
-            }
-            throw new InvalidOperationException("隐藏Panel或Window失败，请使用[UIPanel]或[UIWindow]标记类");
+            throw new Exception("隐藏UI失败，请使用[UILayer]子类标记类，隐藏子UI请使用UIFrame.Hide(UIBase ui)");
         }
 
         /// <summary>
@@ -207,7 +204,7 @@ namespace Feif.UIFramework
         /// </summary>
         public static Task Hide(UIBase ui, bool forceDestroy = false)
         {
-            if (!IsPanel(ui) && !IsWindow(ui))
+            if (GetLayer(ui) == null)
             {
                 if (!ui.gameObject.activeSelf) return Task.CompletedTask;
 
@@ -267,15 +264,39 @@ namespace Feif.UIFramework
         {
             foreach (var item in instances)
             {
-                if (predicate == null)
-                {
-                    yield return item.Value.GetComponent<UIBase>();
-                }
-                else if (predicate != null && predicate(item.Key))
-                {
-                    yield return item.Value.GetComponent<UIBase>();
-                }
+                if (predicate != null && !predicate.Invoke(item.Key)) continue;
+
+                yield return item.Value.GetComponent<UIBase>();
             }
+        }
+
+        /// <summary>
+        /// 获得UILayer
+        /// </summary>
+        public static UILayer GetLayer(Type type)
+        {
+            if (type == null) return null;
+
+            var layer = type.GetCustomAttributes(typeof(UILayer), true).FirstOrDefault() as UILayer;
+            return layer;
+        }
+
+        /// <summary>
+        /// 获得UILayer
+        /// </summary>
+        public static UILayer GetLayer(UIBase ui)
+        {
+            return GetLayer(ui.GetType());
+        }
+
+        /// <summary>
+        /// 获得UI层RectTransform
+        /// </summary>
+        public static RectTransform GetLayerTransform(Type type)
+        {
+            var layer = GetLayer(type);
+            uiLayers.TryGetValue(layer, out var result);
+            return result;
         }
         #endregion
 
@@ -309,7 +330,7 @@ namespace Feif.UIFramework
 
             var uibases = ui.BreadthTraversal().ToArray();
             if (data != null) TrySetData(ui, data);
-            if (panelStack.Count > 0 && IsPanel(ui))
+            if (panelStack.Count > 0 && GetLayer(ui) is PanelLayer)
             {
                 var (type, _) = panelStack.Pop();
                 panelStack.Push((type, data));
@@ -324,14 +345,9 @@ namespace Feif.UIFramework
         {
             foreach (var item in instances)
             {
-                if (predicate == null)
-                {
-                    await Refresh(item.Value.GetComponent<UIBase>());
-                }
-                else if (predicate != null && predicate(item.Key))
-                {
-                    await Refresh(item.Value.GetComponent<UIBase>());
-                }
+                if (predicate != null && !predicate.Invoke(item.Key)) continue;
+
+                await Refresh(item.Value.GetComponent<UIBase>());
             }
         }
         #endregion
@@ -411,46 +427,6 @@ namespace Feif.UIFramework
         }
 
         /// <summary>
-        /// 判断UI是否是Panel
-        /// </summary>
-        public static bool IsPanel(UIBase ui)
-        {
-            return IsPanel(ui.GetType());
-        }
-
-        /// <summary>
-        /// 判断UI是否是Window
-        /// </summary>
-        public static bool IsWindow(UIBase ui)
-        {
-            return IsWindow(ui.GetType());
-        }
-
-        /// <summary>
-        /// 判断UI是否是Panel
-        /// </summary>
-        public static bool IsPanel(Type type)
-        {
-            if (Attribute.IsDefined(type, typeof(UIPanelAttribute)) && Attribute.IsDefined(type, typeof(UIWindowAttribute)))
-            {
-                throw new InvalidOperationException("不能同时定义[UIPanel]属性和[UIWindow]属性");
-            }
-            return Attribute.IsDefined(type, typeof(UIPanelAttribute));
-        }
-
-        /// <summary>
-        /// 判断UI是否是Window
-        /// </summary>
-        public static bool IsWindow(Type type)
-        {
-            if (Attribute.IsDefined(type, typeof(UIPanelAttribute)) && Attribute.IsDefined(type, typeof(UIWindowAttribute)))
-            {
-                throw new InvalidOperationException("不能同时定义[UIPanel]属性和[UIWindow]属性");
-            }
-            return Attribute.IsDefined(type, typeof(UIWindowAttribute));
-        }
-
-        /// <summary>
         /// 强制释放已经关闭的UI，即使UI的AutoDestroy为false，仍然释放该资源
         /// </summary>
         public static void Release()
@@ -473,7 +449,9 @@ namespace Feif.UIFramework
             if (instances.TryGetValue(type, out var instance)) return instance;
 
             var refInstance = await OnAssetRequest?.Invoke(type);
-            var parent = IsPanel(refInstance.GetComponent<UIBase>()) ? PanelLayer : WindowLayer;
+            var uibase = refInstance.GetComponent<UIBase>();
+            if (uibase == null) throw new Exception("预制体没有挂载继承自UIBase的脚本");
+            var parent = GetOrCreateLayerTransform(type);
             instance = await UIFrame.Instantiate(refInstance, parent, data);
             instances[type] = instance;
             return instance;
@@ -642,7 +620,7 @@ namespace Feif.UIFramework
                     Debug.LogException(ex);
                 }
             }
-            if (!IsPanel(uibase) && !IsWindow(uibase))
+            if (GetLayer(uibase) == null)
             {
                 await DoRefresh(uibases);
                 instance.SetActive(true);
@@ -656,7 +634,7 @@ namespace Feif.UIFramework
         {
             try
             {
-                if (!IsPanel(ui) && !IsWindow(ui))
+                if (GetLayer(ui) == null)
                 {
                     if (ui.gameObject.activeSelf) return ui;
 
@@ -718,7 +696,7 @@ namespace Feif.UIFramework
                     OnStuckStart?.Invoke();
                     isStuck = true;
                 });
-                if (IsPanel(type))
+                if (GetLayer(type) is PanelLayer)
                 {
                     if (CurrentPanel != null && type == CurrentPanel.GetType()) return CurrentPanel;
                     UIBase[] currentUIBases = null;
@@ -746,7 +724,7 @@ namespace Feif.UIFramework
                     DoShow(uibases);
                     result = instance.GetComponent<UIBase>();
                 }
-                if (IsWindow(type))
+                else if (GetLayer(type) != null)
                 {
                     var instance = await RequestInstance(type, data);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
@@ -850,6 +828,29 @@ namespace Feif.UIFramework
                 parent = parent.parent;
             }
             return null;
+        }
+
+        private static RectTransform GetOrCreateLayerTransform(Type type)
+        {
+            var layer = GetLayer(type);
+            if (!uiLayers.TryGetValue(layer, out var result))
+            {
+                var layerObject = new GameObject(layer.GetName());
+                layerObject.transform.SetParent(layerTransform);
+                result = layerObject.AddComponent<RectTransform>();
+                result.anchorMin = Vector2.zero;
+                result.anchorMax = Vector2.one;
+                result.offsetMin = Vector2.zero;
+                result.offsetMax = Vector2.zero;
+                result.localScale = Vector3.one;
+                uiLayers[layer] = result;
+                int index = 0;
+                foreach (var item in uiLayers.OrderBy(i => i.Key.GetOrder()))
+                {
+                    item.Value.SetSiblingIndex(++index);
+                }
+            }
+            return result;
         }
     }
 }

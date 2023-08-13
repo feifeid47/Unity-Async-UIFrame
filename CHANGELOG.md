@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.2] - 2023-08-13
+### Changed
+- UIWindow,UIPanel属性改为WindowLayer,PanelLayer
+- UIFrame.IsPanel和UIFrame.IsWindow被删除，使用UIFrame.GetLayer来代替。例如：UIFrame.GetLayer(type) is PanelLayer
+- UIFrame预制体结构发生变化，请参考Demo
+
+### Added
+- 新增UIFrame.GetLayer, UIFrame.GetLayerTransform
+- 新增多层UI控制，可以继承自UILayer来实现多层控制，例如：BattleLayer用来显示战斗UI，NewbieLayer用来显示新手引导UI等等，不同层之间相互不影响。
+
 ## [1.1.1] - 2023-08-05
 
 ### Changed

@@ -3,10 +3,11 @@
 (1) 一个简单易用的异步UI框架  
 (2) 兼容多种资源管理系统（Addressable、YooAssets等）  
 (3) 支持自动引用，暴露在Inspector面板上的字段会自动从Hierarchy面板引用  
-(4) 支持子UI，子子UI，子子子UI......
-(5) 支持自定义脚本模板
-(6) 支持对UI面板的销毁控制，使内存优化更方便
-(7) 强大的扩展性,可以通过自定义事件，来支持自动事件绑定，例如自动绑定按钮的点击事件
+(4) 支持子UI，子子UI，子子子UI......  
+(5) 支持自定义脚本模板  
+(6) 支持对UI面板的销毁控制，使内存优化更方便  
+(7) 强大的扩展性,可以通过自定义事件，来支持自动事件绑定，例如自动绑定按钮的点击事件  
+(8) 支持多层UI管理  
 ```
 # 安装
 
@@ -30,12 +31,10 @@ https://github.com/feifeid47/Unity-Async-UIFrame.git
 
 创建UIFrame预制体，可参考如下结构  
 Canvas的渲染模式要设置成`屏幕空间-摄像机`  
-PanelLayer和WindowLayer的RectTransform要设置成全屏的(左，右，顶部，底部都要为0)  
 ```
 --UIFrame         (RectTransform、Canvas、CanvasScaler、GraphicRaycaster、UIFrame)  
 ------UICamera    (Transform、Camera、AudioListener)
-------PanelLayer  (RectTransform)
-------WindowLayer (RectTransform)
+------UILayers    (RectTransform)
 ------EventSystem (Transform、EventSystem、StandaloneInputModule)
 ```
 
@@ -95,7 +94,7 @@ public class UITestData : UIData
 
 }
 
-[UIPanel]
+[PanelLayer]
 public class UITest : UIComponent<UITestData>
 {
     [SerializeField] private Image img;
@@ -165,10 +164,11 @@ public class UITest : UIComponent<UITestData>
     }
 }
 ```
-使用`[UIPanel]`或`[UIWindow]`属性来标记UI  
-使用`[UIPanel]`属性标记的UI类一般用作全屏面板，将由栈进行控制，显示下一个Panel时会将当前Panel关闭，隐藏当前Panel时会显示上一个Panel  
-使用`[UIWindow]`属性标记的UI类一般用作弹窗，它显示在Panel之上  
-一个UI不能既由充当Panel又充当Window
+使用`[PanelLayer]`或`[WindowLayer]`或继承自[UILayer]的类来标记UI  
+使用`[PanelLayer]`属性标记的UI类一般用作全屏面板，将由栈进行控制，显示下一个Panel时会将当前Panel关闭，隐藏当前Panel时会显示上一个Panel  
+使用`[WindowLayer]`属性标记的UI类一般用作弹窗，它显示在Panel之上  
+一个UI只能标记一个层级属性  
+可以自定义层级，需要继承自[UILayer]，例如BattleLayer用来显示战斗相关UI，NewbieLayer用来显示新手引导相关UI  
 
 ```C#
 // 显示UI
@@ -260,7 +260,7 @@ UIFrame.DestroyImmediate(gameObject);
 根据UIBase的生命周期，显示UITest时，会同时执行UITest下所有继承自UIBase的组件的方法，且会按顺序执行，执行完父物体的函数才会执行子物体的函数
 
 ```C#
-[UIPanel]
+[PanelLayer]
 public class UITest : UIBase
 {
     [SerializeField] private UIRed uiRed;
@@ -458,7 +458,7 @@ public class AutoBindUGUIButtonEvent
 可以直接写方法体，带上属性，会自动绑定和解绑事件，如下：UITest预制体有子物体@BtnRed，@BtnBlue，@BtnBack。
 
 ```C#
-[UIPanel]
+[PanelLayer]
 public class UITest : UIBase
 {
     [SerializeField] private UIRed uiRed;
