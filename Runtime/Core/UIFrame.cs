@@ -677,7 +677,7 @@ namespace Feif.UIFramework
             }
         }
 
-        public static async Task<T> ShowAsync<T>(UIData data = null) where T : UIBase
+        private static async Task<T> ShowAsync<T>(UIData data = null) where T : UIBase
         {
             var result = await Show(typeof(T), data);
             return result as T;
