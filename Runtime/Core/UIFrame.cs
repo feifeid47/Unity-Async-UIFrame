@@ -446,7 +446,11 @@ namespace Feif.UIFramework
         {
             if (type == null) throw new NullReferenceException();
 
-            if (instances.TryGetValue(type, out var instance)) return instance;
+            if (instances.TryGetValue(type, out var instance))
+            {
+                TrySetData(instance.GetComponent<UIBase>(), data);
+                return instance;
+            }
 
             var refInstance = await OnAssetRequest?.Invoke(type);
             var uibase = refInstance.GetComponent<UIBase>();

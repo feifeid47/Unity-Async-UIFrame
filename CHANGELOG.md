@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.1.3] - 2023-09-24
+### Fixed
+- 修复Auto Destroy为false时，数据不更新的BUG
+
 ## [1.1.2] - 2023-08-13
 ### Changed
 - UIWindow,UIPanel属性改为WindowLayer,PanelLayer
