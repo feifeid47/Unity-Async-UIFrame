@@ -431,14 +431,19 @@ namespace Feif.UIFramework
         /// </summary>
         public static void Release()
         {
+            var keys = new List<Type>();
             foreach (var item in instances)
             {
                 if (item.Value != null && !item.Value.activeInHierarchy)
                 {
                     UIFrame.Destroy(item.Value);
                     OnAssetRelease?.Invoke(item.Key);
-                    instances.Remove(item.Key);
+                    keys.Add(item.Key);
                 }
+            }
+            foreach(var item in keys)
+            {
+                instances.Remove(item);
             }
         }
 
