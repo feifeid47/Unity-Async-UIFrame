@@ -1,4 +1,8 @@
 # Changelog
+## [1.1.5] - 2024-01-27
+### Fixed
+- 修复UIFrame.Instantiate实例化的UI没有设置父物节点的问题
+
 ## [1.1.4] - 2024-01-24
 ### Fixed
 - 修复Release中的错误

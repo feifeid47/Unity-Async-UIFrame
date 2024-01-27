@@ -616,6 +616,7 @@ namespace Feif.UIFramework
                 var parentUI = GetParent(item);
                 if (parentUI == null) continue;
                 parentUI.Children.Add(item);
+                item.Parent = parentUI;
             }
             foreach (var item in uibases)
             {
