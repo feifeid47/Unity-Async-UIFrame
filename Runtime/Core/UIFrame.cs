@@ -16,6 +16,8 @@ namespace Feif.UIFramework
         private static readonly Dictionary<Type, GameObject> instances = new Dictionary<Type, GameObject>();
         private static readonly Stack<(Type type, UIData data)> panelStack = new Stack<(Type, UIData)>();
         private static readonly Dictionary<UILayer, RectTransform> uiLayers = new Dictionary<UILayer, RectTransform>();
+        private static HashSet<UITimer> timers = new HashSet<UITimer>();
+        private static HashSet<UITimer> timerRemoveSet = new HashSet<UITimer>();
         private static RectTransform layerTransform;
 
         [SerializeField] private RectTransform layers;
@@ -384,6 +386,7 @@ namespace Feif.UIFramework
                 {
                     OnDied?.Invoke(item);
                     item.InnerOnDied();
+                    item.CancelAllTimer();
                 }
                 catch (Exception ex)
                 {
@@ -417,6 +420,7 @@ namespace Feif.UIFramework
                 {
                     OnDied?.Invoke(item);
                     item.InnerOnDied();
+                    item.CancelAllTimer();
                 }
                 catch (Exception ex)
                 {
@@ -441,10 +445,24 @@ namespace Feif.UIFramework
                     keys.Add(item.Key);
                 }
             }
-            foreach(var item in keys)
+            foreach (var item in keys)
             {
                 instances.Remove(item);
             }
+        }
+
+        /// <summary>
+        /// 创建定时器
+        /// </summary>
+        /// <param name="delay">延迟多少秒后执行callback</param>
+        /// <param name="callback">延迟执行的方法</param>
+        /// <param name="isLoop">是否是循环定时器</param>
+        public static UITimer CreateTimer(float delay, Action callback, bool isLoop = false)
+        {
+            if (delay <= 0) throw new Exception("delay必须大于0");
+            var timer = new UITimer(delay, callback, isLoop);
+            timers.Add(timer);
+            return timer;
         }
 
         private static async Task<GameObject> RequestInstance(Type type, UIData data)
@@ -861,6 +879,19 @@ namespace Feif.UIFramework
                 }
             }
             return result;
+        }
+
+        private void Update()
+        {
+            foreach (var item in timers)
+            {
+                item.Update();
+                if (item.IsCancel) timerRemoveSet.Add(item);
+            }
+            foreach (var item in timerRemoveSet)
+            {
+                timers.Remove(item);
+            }
         }
     }
 }

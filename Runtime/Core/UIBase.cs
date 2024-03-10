@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -31,6 +32,7 @@ namespace Feif.UIFramework
         protected internal void InnerOnHide() => OnHide();
         protected internal void InnerOnDied() => OnDied();
 
+        private HashSet<UITimer> timers = new HashSet<UITimer>();
 
         /// <summary>
         /// 创建时调用，生命周期内只执行一次
@@ -66,5 +68,30 @@ namespace Feif.UIFramework
         /// 销毁时调用，生命周期内只执行一次
         /// </summary>
         protected virtual void OnDied() { }
+
+        /// <summary>
+        /// 创建定时器，gameObject被销毁时会自动Cancel定时器
+        /// </summary>
+        /// <param name="delay">延迟多少秒后执行callback</param>
+        /// <param name="callback">延迟执行的方法</param>
+        /// <param name="isLoop">是否是循环定时器</param>
+        protected UITimer CreateTimer(float delay, Action callback, bool isLoop = false)
+        {
+            var timer = UIFrame.CreateTimer(delay, callback, isLoop);
+            timers.Add(timer);
+            return timer;
+        }
+
+        /// <summary>
+        /// 取消所有定时器
+        /// </summary>
+        public void CancelAllTimer()
+        {
+            foreach (var item in timers)
+            {
+                item.Cancel();
+            }
+            timers.Clear();
+        }
     }
 }

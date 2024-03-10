@@ -1,4 +1,26 @@
 # Changelog
+## [1.1.6] - 2024-03-10
+### Added
+- 新增Timer定时器
+```C#
+# 使用UIFrame创建定时器
+UITimer timer = UIFrame.CreateTimer(0.3f, () => { }, isLoop = true);
+# 取消定时器
+timer.Cancel();
+
+# UIBase中的创建定时器
+class TestUI: UIBase
+{
+    protected override Task OnCreate()
+    {
+        # 创建定时器，gameObject被销毁时会自动Cancel
+        var timer = this.CreateTimer(0.3f, () => { }, isLoop: true);
+        return Task.CompletedTask;
+    }
+}
+
+```
+
 ## [1.1.5] - 2024-01-27
 ### Fixed
 - 修复UIFrame.Instantiate实例化的UI没有设置父物节点的问题
