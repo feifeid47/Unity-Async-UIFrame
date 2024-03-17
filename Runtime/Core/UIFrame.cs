@@ -70,6 +70,7 @@ namespace Feif.UIFramework
             layerTransform.offsetMin = Vector2.zero;
             layerTransform.offsetMax = Vector2.zero;
             DontDestroyOnLoad(gameObject);
+            AutoBindUITimer.Enable();
         }
 
         #region 事件
@@ -892,6 +893,11 @@ namespace Feif.UIFramework
             {
                 timers.Remove(item);
             }
+        }
+
+        private void OnDestroy()
+        {
+            AutoBindUITimer.Disable();
         }
     }
 }

@@ -1,14 +1,51 @@
 # Changelog
+## [1.1.7] - 2024-03-17
+### Added
+- 新增Timer定时器属性
+```C#
+// 实现一
+class TestUI : UIBase
+{
+    private UITimer timer = null;
+
+    protected override void OnBind()
+    {
+        timer = UIFrame.CreateTimer(delay: 1, UpdateEverySecond, isLoop: true);
+    }
+
+    protected override void OnUnbind()
+    {
+        timer.Cancel();
+    }
+
+    private void UpdateEverySecond()
+    {
+        // 每秒更新
+    }
+}
+// 上面的代码可以使用UITimer属性，简化成下面的
+// 实现二
+class TestUI: UIBase
+{
+    [UITimer(delay: 1f, isLoop: true)]
+    private void UpdateEverySecond()
+    {
+        // 每秒更新
+    }
+}
+
+```
+
 ## [1.1.6] - 2024-03-10
 ### Added
 - 新增Timer定时器
 ```C#
-# 使用UIFrame创建定时器
+// 使用UIFrame创建定时器
 UITimer timer = UIFrame.CreateTimer(0.3f, () => { }, isLoop = true);
-# 取消定时器
+// 取消定时器
 timer.Cancel();
 
-# UIBase中的创建定时器
+// UIBase中的创建定时器
 class TestUI: UIBase
 {
     protected override Task OnCreate()
