@@ -68,6 +68,7 @@ namespace Feif.UIFramework.Editor
             var type = script.GetType();
             var fields = type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
                   .Where(item => Attribute.IsDefined(item, typeof(SerializeField)));
+            Transform scriptTransform;
             foreach (var field in fields)
             {
                 bool isGameObject = field.FieldType.IsEquivalentTo(typeof(GameObject));
@@ -79,7 +80,8 @@ namespace Feif.UIFramework.Editor
                     var list = field.GetValue(script) as IList;
 
                     // 获得元素组的父节点
-                    var content = (script as Component).transform.BreadthTraversal()
+                    scriptTransform = (script as Component).transform;
+                    var content = scriptTransform.BreadthTraversal(except: t => t != scriptTransform && t.GetComponent<UIBase>() != null)
                         .FirstOrDefault(item => item.name.Trim('@').ToUpper() == field.Name.ToUpper());
 
                     if (content == null) continue;
@@ -110,7 +112,8 @@ namespace Feif.UIFramework.Editor
                 }
                 if (!fieldType.IsSubclassOf(typeof(Component))) continue;
 
-                var target = (script as Component).transform.BreadthTraversal()
+                scriptTransform = (script as Component).transform;
+                var target = scriptTransform.BreadthTraversal(except: t => t != scriptTransform && t.GetComponent<UIBase>() != null)
                     .Where(item => item.GetComponent(fieldType) != null)
                     .Select(item => item.GetComponent(fieldType))
                     .FirstOrDefault(item =>

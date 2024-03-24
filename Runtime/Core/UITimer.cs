@@ -86,9 +86,9 @@ namespace Feif.UIFramework
 
             foreach (var method in methods)
             {
-                var attribute = method.GetCustomAttribute<UITimerAttribute>();
                 if (method.GetParameters().Length == 0)
                 {
+                    var attribute = method.GetCustomAttribute<UITimerAttribute>();
                     Action callback = (Action)Delegate.CreateDelegate(typeof(Action), uibase, method);
                     bind.Add((attribute.Delay, callback, attribute.IsLoop));
                 }

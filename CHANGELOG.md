@@ -1,4 +1,41 @@
 # Changelog
+## [1.1.8] - 2024-03-24
+### Added
+- 添加Button按钮点击事件自动绑定的属性，并删除Demo2（与Demo2的使用稍有不同）
+```C#
+// 实现一
+class TestUI : UIBase
+{
+    private Button btnTest;
+
+    protected override void OnBind()
+    {
+        btnTest.onClick.AddListener(OnClickBtnTest);
+    }
+
+    protected override void OnUnbind()
+    {
+        btnTest.onClick.RemoveListener(OnClickBtnTest);
+    }
+
+    private void OnClickBtnTest()
+    {
+    }
+}
+// 上面的代码可以使用UGUIButtonEvent属性，简化成下面的
+// @BtnTest为按钮名称。如果子UI也有同样的名称，并不会引用子UI的按钮
+// 实现二
+class TestUI: UIBase
+{
+    [UGUIButtonEvent(name: "@BtnTest")]
+    private void OnClickBtnTest()
+    {
+    }
+}
+```
+### Fixed
+- 修复自动引用会引用子UI中的节点问题，再也不用担心父UI和子UI中因为节点名称一样而导致自动引用错误  
+
 ## [1.1.7] - 2024-03-17
 ### Added
 - 新增Timer定时器属性

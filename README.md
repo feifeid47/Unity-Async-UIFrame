@@ -372,13 +372,12 @@ UIFrame.DestroyImmediate(gameObject);
 
 # 自定义事件
 按钮事件自动绑定，可以通过注册UIFrame.OnBind和UIFrame.OnUnbind来实现。  
-可参考如下  
+自带的UITimer属性和UGUIButtonEvent属性也是通过这种方式实现的，如果需要扩展功能，可以参考这些代码  
+扩展都可以通过注册`UIFrame.OnCreate`、`UIFrame.OnRefresh`、`UIFrame.OnBind`、`UIFrame.OnUnbind`、`UIFrame.OnShow`、`UIFrame.OnHide`、`UIFrame.OnDied`来实现  
 
 ```C#
-public class AutoBindUGUIButtonEvent
+public class AutoBindXXX
 {
-    private static Dictionary<UIBase, Dictionary<string, (Button btn, UnityAction action)>> binds = new Dictionary<UIBase, Dictionary<string, (Button, UnityAction)>>();
-
     public static void Enable()
     {
         UIFrame.OnCreate += OnCreate;
@@ -397,54 +396,21 @@ public class AutoBindUGUIButtonEvent
 
     private static void OnCreate(UIBase uibase)
     {
+        // 通过反射获得使用了XXXAttribute的字段或方法
         var methods = uibase.GetType()
             .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
-            .Where(item => Attribute.IsDefined(item, typeof(UGUIButtonEventAttribute)));
-        binds[uibase] = new Dictionary<string, (Button, UnityAction)>();
-        var bind = binds[uibase];
-        var buttons = new Dictionary<string, Button>();
-
-        foreach (var item in uibase.transform.BreadthTraversal()
-            .Where(item => item.GetComponent<Button>() != null
-            && item.name.StartsWith("@")))
-        {
-            var key = $"On{item.name.Trim('@')}".ToUpper();
-            if (!buttons.ContainsKey(key))
-            {
-                buttons[key] = item.GetComponent<Button>();
-            }
-        }
-
-        foreach (var method in methods)
-        {
-            var key = method.Name.ToUpper();
-            if (buttons.TryGetValue(key, out var btn))
-            {
-                bind[key] = (btn, (UnityAction)Delegate.CreateDelegate(typeof(UnityAction), uibase, method));
-            }
-        }
+            .Where(item => Attribute.IsDefined(item, typeof(XXXAttribute)));
+        // TODO
     }
 
     private static void OnBind(UIBase uibase)
     {
-        if (binds.TryGetValue(uibase, out var bind))
-        {
-            foreach (var (btn, action) in bind.Values)
-            {
-                btn.onClick.AddListener(action);
-            }
-        }
+        // 执行绑定
     }
 
     private static void OnUnbind(UIBase uibase)
     {
-        if (binds.TryGetValue(uibase, out var bind))
-        {
-            foreach (var (btn, action) in bind.Values)
-            {
-                btn.onClick.RemoveListener(action);
-            }
-        }
+        // 执行解绑
     }
 
     private static void OnDied(UIBase uibase)
@@ -453,38 +419,3 @@ public class AutoBindUGUIButtonEvent
     }
 }
 ```
-
-这样就不需要手动在UIBase中的OnBind和OnUnbind添加事件的注册和注销了。  
-
-可以直接写方法体，带上属性，会自动绑定和解绑事件，如下：UITest预制体有子物体@BtnRed，@BtnBlue，@BtnBack。
-
-```C#
-[PanelLayer]
-public class UITest : UIBase
-{
-    [SerializeField] private UIRed uiRed;
-    [SerializeField] private UIBlue uiBlue;
-
-    [UGUIButtonEvent]
-    protected void OnBtnRed()
-    {
-        var data = new UIRedData() { Content = "This is UIRed" };
-        UIFrame.Show(uiRed, data);
-    }
-
-    [UGUIButtonEvent]
-    protected void OnBtnBlue()
-    {
-        var data = new UIBlueData() { Content = "This is UIBlue" };
-        UIFrame.Show(uiBlue, data);
-    }
-
-    [UGUIButtonEvent]
-    protected void OnBtnBack()
-    {
-        UIFrame.Hide(this);
-    }
-}
-```
-
-其他事件的扩展都可以通过注册`UIFrame.OnCreate`、`UIFrame.OnRefresh`、`UIFrame.OnBind`、`UIFrame.OnUnbind`、`UIFrame.OnShow`、`UIFrame.OnHide`、`UIFrame.OnDied`来实现
