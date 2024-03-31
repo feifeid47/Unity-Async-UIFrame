@@ -1,4 +1,8 @@
-using System.Threading.Tasks;
+#if USING_UNITASK
+using Task = Cysharp.Threading.Tasks.UniTask;
+#else
+using Task = System.Threading.Tasks.Task;
+#endif
 using UnityEngine;
 using UnityEngine.UI;
 using Feif.UIFramework;

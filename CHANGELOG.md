@@ -1,4 +1,10 @@
 # Changelog
+## [1.1.9] - 2024-03-31
+### Added
+- 添加支持：将UIFrame由`Task`替换为`UniTask`  
+首先确保Unity工程已经安装了UniTask插件。  
+只需在脚本定义符号中添加`USING_UNITASK`即可  
+
 ## [1.1.8] - 2024-03-24
 ### Added
 - 添加Button按钮点击事件自动绑定的属性，并删除Demo2（与Demo2的使用稍有不同）

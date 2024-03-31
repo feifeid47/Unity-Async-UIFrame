@@ -1,8 +1,14 @@
 using Feif.UI;
 using Feif.UIFramework;
 using System;
-using System.Threading.Tasks;
 using UnityEngine;
+#if USING_UNITASK
+using Task = Cysharp.Threading.Tasks.UniTask;
+using Cysharp.Threading.Tasks;
+#else
+using Task = System.Threading.Tasks.Task;
+using System.Threading.Tasks;
+#endif
 
 namespace Feif
 {
@@ -29,7 +35,11 @@ namespace Feif
 
         // 资源请求事件，type为UI脚本的类型
         // 可以使用Addressables，YooAssets等第三方资源管理系统
+#if USING_UNITASK
+        private UniTask<GameObject> OnAssetRequest(Type type)
+#else
         private Task<GameObject> OnAssetRequest(Type type)
+#endif
         {
             var layer = UIFrame.GetLayer(type);
             return Task.FromResult(Resources.Load<GameObject>($"{layer.GetName()}/{type.Name}"));

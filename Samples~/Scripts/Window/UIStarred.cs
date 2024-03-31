@@ -1,11 +1,17 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using Feif.UIFramework;
 using System.Text.RegularExpressions;
 using UnityEngine.Networking;
+#if USING_UNITASK
+using Task = Cysharp.Threading.Tasks.UniTask;
+using Cysharp.Threading.Tasks;
+#else
+using Task = System.Threading.Tasks.Task;
+using System.Threading.Tasks;
 using Feif.Extensions;
+#endif
 
 namespace Feif.UI
 {
@@ -88,7 +94,11 @@ namespace Feif.UI
         }
 
         // 获得关注列表
+#if USING_UNITASK
+        public static async UniTask<List<StarData>> GetStarList()
+#else
         public static async Task<List<StarData>> GetStarList()
+#endif
         {
             using (var request = UnityWebRequest.Get("https://api.github.com/repos/feifeid47/Unity-Async-UIFrame/stargazers?per_page=100"))
             {

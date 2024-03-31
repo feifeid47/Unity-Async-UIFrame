@@ -8,6 +8,7 @@ namespace Feif.Extensions
 {
     public static class TaskExtensions
     {
+#if !USING_UNITASK
         public static TaskAwaiter<UnityWebRequest> GetAwaiter(this UnityWebRequestAsyncOperation opt)
         {
             var completionSource = new TaskCompletionSource<UnityWebRequest>();
@@ -29,5 +30,6 @@ namespace Feif.Extensions
             };
             return completionSource.Task.GetAwaiter();
         }
+#endif
     }
 }

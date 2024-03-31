@@ -3,9 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 using UnityEngine;
 using Feif.Extensions;
+#if USING_UNITASK
+using GameObjectTask = Cysharp.Threading.Tasks.UniTask<UnityEngine.GameObject>;
+using UIBaseTask = Cysharp.Threading.Tasks.UniTask<Feif.UIFramework.UIBase>;
+using Task = Cysharp.Threading.Tasks.UniTask;
+using Cysharp.Threading.Tasks;
+#else
+using GameObjectTask = System.Threading.Tasks.Task<UnityEngine.GameObject>;
+using UIBaseTask = System.Threading.Tasks.Task<Feif.UIFramework.UIBase>;
+using Task = System.Threading.Tasks.Task;
+using System.Threading.Tasks;
+#endif
 
 namespace Feif.UIFramework
 {
@@ -88,7 +98,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 资源请求
         /// </summary>
-        public static event Func<Type, Task<GameObject>> OnAssetRequest;
+        public static event Func<Type, GameObjectTask> OnAssetRequest;
 
         /// <summary>
         /// 资源释放
@@ -135,7 +145,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 显示UI
         /// </summary>
-        public static Task<UIBase> Show(UIBase ui, UIData data = null)
+        public static UIBaseTask Show(UIBase ui, UIData data = null)
         {
             return ShowAsync(ui, data);
         }
@@ -143,7 +153,11 @@ namespace Feif.UIFramework
         /// <summary>
         /// 显示Panel或Window
         /// </summary>
+#if USING_UNITASK
+        public static UniTask<T> Show<T>(UIData data = null) where T : UIBase
+#else
         public static Task<T> Show<T>(UIData data = null) where T : UIBase
+#endif
         {
             return ShowAsync<T>(data);
         }
@@ -151,7 +165,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 显示Panel或Window
         /// </summary>
-        public static Task<UIBase> Show(Type type, UIData data = null)
+        public static UIBaseTask Show(Type type, UIData data = null)
         {
             if (GetLayer(type) == null) throw new Exception("请使用[UILayer]子类标记类，显示子UI请使用Show(UIBase ui)");
 
@@ -359,7 +373,7 @@ namespace Feif.UIFramework
         /// <summary>
         /// 创建UI GameObject
         /// </summary>
-        public static Task<GameObject> Instantiate(GameObject prefab, Transform parent = null, UIData data = null)
+        public static GameObjectTask Instantiate(GameObject prefab, Transform parent = null, UIData data = null)
         {
             return InstantiateAsync(prefab, parent, data);
         }
@@ -467,7 +481,7 @@ namespace Feif.UIFramework
             return timer;
         }
 
-        private static async Task<GameObject> RequestInstance(Type type, UIData data)
+        private static async GameObjectTask RequestInstance(Type type, UIData data)
         {
             if (type == null) throw new NullReferenceException();
 
@@ -476,8 +490,11 @@ namespace Feif.UIFramework
                 TrySetData(instance.GetComponent<UIBase>(), data);
                 return instance;
             }
-
-            var refInstance = await OnAssetRequest?.Invoke(type);
+            GameObject refInstance = null;
+            if (OnAssetRelease != null)
+            {
+                refInstance = await OnAssetRequest.Invoke(type);
+            }
             var uibase = refInstance.GetComponent<UIBase>();
             if (uibase == null) throw new Exception("预制体没有挂载继承自UIBase的脚本");
             var parent = GetOrCreateLayerTransform(type);
@@ -615,7 +632,7 @@ namespace Feif.UIFramework
             }
         }
 
-        private static async Task<GameObject> InstantiateAsync(GameObject prefab, Transform parent, UIData data)
+        private static async GameObjectTask InstantiateAsync(GameObject prefab, Transform parent, UIData data)
         {
             bool refActiveSelf = prefab.activeSelf;
             prefab.SetActive(false);
@@ -660,7 +677,7 @@ namespace Feif.UIFramework
             return instance;
         }
 
-        private static async Task<UIBase> ShowAsync(UIBase ui, UIData data = null)
+        private static async UIBaseTask ShowAsync(UIBase ui, UIData data = null)
         {
             try
             {
@@ -707,13 +724,17 @@ namespace Feif.UIFramework
             }
         }
 
+#if USING_UNITASK
+        private static async UniTask<T> ShowAsync<T>(UIData data = null) where T : UIBase
+#else
         private static async Task<T> ShowAsync<T>(UIData data = null) where T : UIBase
+#endif
         {
             var result = await Show(typeof(T), data);
             return result as T;
         }
 
-        private static async Task<UIBase> ShowAsync(Type type, UIData data = null)
+        private static async UIBaseTask ShowAsync(Type type, UIData data = null)
         {
             try
             {

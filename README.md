@@ -419,3 +419,7 @@ public class AutoBindXXX
     }
 }
 ```
+# 使用UniTask  
+首先确保Unity工程已经安装了UniTask插件。  
+只需在脚本定义符号中添加`USING_UNITASK`即可。  
+![](./README/unitask.png)  

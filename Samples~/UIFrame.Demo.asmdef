@@ -2,7 +2,8 @@
     "name": "UIFrame.Demo",
     "rootNamespace": "",
     "references": [
-        "GUID:e50474e6b07a43a409e3ac5aaf1cc70b"
+        "UIFrame",
+        "UniTask"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

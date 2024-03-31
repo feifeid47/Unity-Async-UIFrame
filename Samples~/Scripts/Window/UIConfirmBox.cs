@@ -1,8 +1,12 @@
-using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using Feif.UIFramework;
 using System;
+#if USING_UNITASK
+using Task = Cysharp.Threading.Tasks.UniTask;
+#else
+using Task = System.Threading.Tasks.Task;
+#endif
 
 namespace Feif.UI
 {

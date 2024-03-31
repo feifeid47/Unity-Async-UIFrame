@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
+#if USING_UNITASK
+using Task = Cysharp.Threading.Tasks.UniTask;
+#else
+using Task = System.Threading.Tasks.Task;
+#endif
 
 namespace Feif.UIFramework
 {
