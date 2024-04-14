@@ -1,6 +1,6 @@
 {
     "name": "com.feif.uiframe",
-    "version": "1.1.9",
+    "version": "1.2.0",
     "displayName": "UIFrame",
     "description": "异步UI框架",
     "unity": "2019.4",

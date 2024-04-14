@@ -14,6 +14,7 @@ namespace Feif.UI
     [WindowLayer]
     public class #SCRIPTNAME# : UIComponent<#SCRIPTNAME#Data>
     {
+        #FIELDS#
         protected override Task OnCreate()
         {
             return Task.CompletedTask;
@@ -43,5 +44,7 @@ namespace Feif.UI
         protected override void OnDied()
         {
         }
+
+        #FUNCTIONS#
     }
 }

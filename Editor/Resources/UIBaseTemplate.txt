@@ -9,6 +9,7 @@ namespace Feif.UI
 {
     public class #SCRIPTNAME# : UIBase
     {
+        #FIELDS#
         protected override Task OnCreate()
         {
             return Task.CompletedTask;
@@ -38,5 +39,7 @@ namespace Feif.UI
         protected override void OnDied()
         {
         }
+
+        #FUNCTIONS#
     }
 }

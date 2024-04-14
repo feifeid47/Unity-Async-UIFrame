@@ -9,6 +9,7 @@
 (7) 强大的扩展性,可以通过自定义事件，来支持自动事件绑定，例如自动绑定按钮的点击事件  
 (8) 支持多层UI管理  
 (9) 内置定时器  
+(10) 支持自动生成代码  
 ```
 # 安装
 
@@ -248,6 +249,87 @@ UIFrame.DestroyImmediate(gameObject);
 在开启自动引用时，被引用的字段将被控制，你无法删除或将该字段的值修改成其他值  
 
 ![](./README/autoref1.png)  
+
+# 自动生成代码  
+首先准备好已经制作好的prefab（需要使用的节点以@符号开头），如图：  
+![](./README/codegenerate.png)  
+
+对prefab右键[创建/UIFrame/UIBase]  
+![](./README/codegenerate2.png)  
+
+就可以生成一个以这个prefab命名的UIBase脚本`UITest.cs`  
+
+下面就是由这个prefab生成的代码，定义好了所有要使用到的属性，并且按钮还生成了点击事件的方法  
+
+```C#
+using System.Collections;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using UnityEngine;
+using UnityEngine.UI;
+using Feif.UIFramework;
+
+namespace Feif.UI
+{
+    public class UITest : UIBase
+    {
+        [SerializeField] private SubUI testSubUI;
+        [SerializeField] private Button testBtn;
+        [SerializeField] private InputField testInputField;
+        [SerializeField] private Text testText;
+        [SerializeField] private Image testImage;
+        [SerializeField] private RawImage testRawImage;
+
+        protected override Task OnCreate()
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override Task OnRefresh()
+        {
+            return Task.CompletedTask;
+        }
+
+        protected override void OnBind()
+        {
+        }
+
+        protected override void OnUnbind()
+        {
+        }
+
+        protected override void OnShow()
+        {
+        }
+
+        protected override void OnHide()
+        {
+        }
+
+        protected override void OnDied()
+        {
+        }
+
+        [UGUIButtonEvent("@TestBtn")]
+        protected void OnClickTestBtn()
+        {
+        }
+
+    }
+}
+```
+`自动引用功能`和这个`自动生成代码功能`结合使用，可以简化开发流程，少做一些枯燥的工作。  
+
+已内置`Button`, `InputField`, `Image`, `RawImage`, `Text`, `UIBase`代码片段生成器，prefab中的节点如果使用了这些组件，且节点名称以@符号开头，可自动生成代码和函数  
+
+如果内置的代码片段生成器不够用，可以继承`CodeSnippetGenerator`实现自己的代码生成功能。
+
+代码生成器的类必须在`UIFrame.Editor`程序集中。  
+你可以将自己写的代码生成器脚本放到UIFrame/Editor/Scripts/CodeSnippetGenerator目录下。  
+或者放在其他文件夹中，但是需要添加一个程序集引用，引用到`UIFrame.Editor`。  
+
+如果你的项目使用了TMP，可以参考`UGUITextCodeSnippetGenerator`写一个TMP的代码生成器哦。  
+
 
 # 子UI
 有时一个面板上会有多个子面板和一些UI元素，希望能在显示一个UI时，能同时将子面板和UI元素进行初始化和刷新  

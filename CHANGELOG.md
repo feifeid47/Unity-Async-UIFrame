@@ -1,4 +1,17 @@
 # Changelog
+## [1.2.0] - 2024-04-14
+### Added
+- 添加代码生成功能(详情请看README)  
+```
+对原来右键菜单[创建/UIFrame/...]下的功能进行了扩展  
+首先准备好已经制作好的prefab（需要使用的节点以@符号开头），对prefab右键[创建/UIFrame/UIBase]，(UIPanel,UIWindow,UIComponent都可以)  
+就可以生成一个以这个prefab命名的UIBase脚本，并且根据这个prefab中以@符号开头命名的节点自动生成了属性代码和函数代码  
+已内置Button, InputField, Image, RawImage, Text, UIBase代码片段生成器，prefab中的节点如果使用了这些组件，且节点名称以@符号开头，可自动生成代码和函数  
+如果内置的代码片段生成器不够用，还可以继承代码生成器基类，实现自己的代码生成功能  
+自动引用功能和这个自动生成代码的功能结合使用，可以简化开发流程，少做一些枯燥的工作   
+
+```
+
 ## [1.1.9] - 2024-03-31
 ### Added
 - 添加支持：将UIFrame由`Task`替换为`UniTask`  

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 
@@ -12,6 +13,24 @@ namespace Feif.UIFramework.Editor
         public TextAsset UIPanelTemplate;
         public TextAsset UIWindowTemplate;
         public bool AutoReference = true;
+
+        public static UIFrameSetting Instance
+        {
+            get
+            {
+                var guid = AssetDatabase.FindAssets("t:UIFrameSetting").FirstOrDefault();
+                if (guid == null)
+                {
+                    var asset = CreateInstance<UIFrameSetting>();
+                    AssetDatabase.CreateAsset(asset, "Assets/UIFrameSetting.asset");
+                    AssetDatabase.Refresh();
+                    guid = AssetDatabase.FindAssets("t:UIFrameSetting").FirstOrDefault();
+                }
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var setting = AssetDatabase.LoadAssetAtPath<UIFrameSetting>(path);
+                return setting;
+            }
+        }
 
         private void Reset()
         {

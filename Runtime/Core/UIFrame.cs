@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Threading;
 using UnityEngine;
 using Feif.Extensions;
+
 #if USING_UNITASK
 using GameObjectTask = Cysharp.Threading.Tasks.UniTask<UnityEngine.GameObject>;
 using UIBaseTask = Cysharp.Threading.Tasks.UniTask<Feif.UIFramework.UIBase>;
@@ -147,6 +148,8 @@ namespace Feif.UIFramework
         /// </summary>
         public static UIBaseTask Show(UIBase ui, UIData data = null)
         {
+            if (GetLayer(ui) != null && ui.Parent != null) throw new Exception("子UI不能使用UILayer属性");
+
             return ShowAsync(ui, data);
         }
 
@@ -750,6 +753,7 @@ namespace Feif.UIFramework
                 if (GetLayer(type) is PanelLayer)
                 {
                     if (CurrentPanel != null && type == CurrentPanel.GetType()) return CurrentPanel;
+
                     UIBase[] currentUIBases = null;
                     if (CurrentPanel != null)
                     {
@@ -779,6 +783,7 @@ namespace Feif.UIFramework
                 {
                     var instance = await RequestInstance(type, data);
                     var uibases = instance.GetComponent<UIBase>().BreadthTraversal().ToArray();
+
                     if (data != null && CurrentPanel != null)
                     {
                         data.Sender = CurrentPanel.GetType();
